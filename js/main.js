@@ -52,6 +52,7 @@
       }
       G.frame++;
       G.render.frame(rdt);
+      if (G.setTouchVis) G.setTouchVis();
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);

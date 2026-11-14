@@ -13,6 +13,9 @@
     time: 0, rtime: 0, dt: 0, rdt: 0,
     timeScale: 1, frame: 0,
     keys: {}, pressed: {}, mouse: { x: 0, y: 0, down: false, clicked: false },
+    tedge: { dash: false, bomb: false, switch: false },   // 触摸按钮「单次触发」边沿
+    tbtn: { fire: false },                                  // 触摸「射击」按住态
+    touch: { anchorX: 0, anchorY: 0, pX: 0, pY: 0, moved: false },
     bullets: [], shots: [], enemies: [], particles: [], floaters: [], items: [], lasers: [],
     poolB: [], poolP: [], poolS: [],
     fx: { shake: 0, shakeX: 0, shakeY: 0, flash: 0, flashColor: '#fff', chroma: 0, vignette: 0, wave: 0 },
@@ -113,7 +116,7 @@
   G.keyDown = c => !!G.keys[c];
   G.keyHit = c => !!G.pressed[c];
   G.anyHit = (...cs) => cs.some(c => !!G.pressed[c]);
-  G.clearPressed = () => { G.pressed = {}; G.mouse.clicked = false; };
+  G.clearPressed = () => { G.pressed = {}; G.mouse.clicked = false; G.tedge.dash = G.tedge.bomb = G.tedge.switch = false; };
 
   G.axis = () => {
     let x = 0, y = 0;
@@ -124,11 +127,11 @@
     if (x && y) { x *= 0.7071; y *= 0.7071; }
     return { x, y, len: Math.hypot(x, y) };
   };
-  G.fireDown = () => G.keyDown('KeyZ') || G.keyDown('KeyJ') || G.mouse.down;
+  G.fireDown = () => G.keyDown('KeyZ') || G.keyDown('KeyJ') || G.mouse.down || G.tbtn.fire;
   G.focusDown = () => G.keyDown('ShiftLeft') || G.keyDown('ShiftRight');
-  G.bombHit = () => G.keyHit('KeyX') || G.keyHit('KeyK');
-  G.switchHit = () => G.keyHit('KeyC') || G.keyHit('KeyL');
-  G.dashHit = () => G.keyHit('KeyV');
+  G.bombHit = () => G.keyHit('KeyX') || G.keyHit('KeyK') || G.tedge.bomb;
+  G.switchHit = () => G.keyHit('KeyC') || G.keyHit('KeyL') || G.tedge.switch;
+  G.dashHit = () => G.keyHit('KeyV') || G.tedge.dash;
 
   /* ---------- 对象池 ---------- */
   function blankB() {
@@ -422,6 +425,98 @@
     });
     G.canvas.addEventListener('mousedown', () => { G.mouse.down = true; G.mouse.clicked = true; });
     window.addEventListener('mouseup', () => { G.mouse.down = false; });
+    G.initTouch();
+  };
+
+  /* ---------- 移动端触摸控制（仅触摸设备启用） ----------
+   * 左半屏：相对拖拽移动自机（按下锚定玩家位置，手指位移 / 缩放 = 游戏内位移）。
+   * 右半屏：四个动作按钮（冲刺/射击/大招/切换）+ 右上角退出。
+   * 仅在 body.touch 且 state==='playing' 时显示。 */
+  G.initTouch = function () {
+    const isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches)
+      || ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+    if (!isTouch) return;
+    document.body.classList.add('touch');
+    const ui = document.getElementById('touch-ui');
+    const move = document.getElementById('touch-move');
+    const stick = document.getElementById('touch-stick');
+    const dot = stick ? stick.querySelector('i') : null;
+    const exit = document.getElementById('touch-exit');
+    const T = G.touch;
+    const clamp = (v, lo, hi) => v < lo ? lo : (v > hi ? hi : v);
+
+    const toLocal = (cx, cy) => {
+      const r = G.canvas.getBoundingClientRect();
+      const s = G.scale || 1;
+      return { x: (cx - r.left) / s, y: (cy - r.top) / s };
+    };
+
+    // 左半屏：相对拖拽移动自机
+    let pid = null;
+    const onMoveDown = e => {
+      if (!G.player || G.state !== 'playing') return;
+      e.preventDefault();
+      pid = e.pointerId;
+      const a = toLocal(e.clientX, e.clientY);
+      T.anchorX = a.x; T.anchorY = a.y; T.pX = G.player.x; T.pY = G.player.y; T.moved = false;
+      if (stick) { stick.style.left = a.x + 'px'; stick.style.top = a.y + 'px'; stick.classList.add('on'); }
+      if (dot) dot.style.transform = 'translate(0px,0px)';
+      try { move.setPointerCapture(pid); } catch (_) {}
+    };
+    const onMoveMove = e => {
+      if (e.pointerId !== pid || !G.player) return;
+      e.preventDefault();
+      const a = toLocal(e.clientX, e.clientY);
+      const dx = a.x - T.anchorX, dy = a.y - T.anchorY;
+      if (Math.abs(dx) + Math.abs(dy) > 4) T.moved = true;
+      G.player.x = clamp(T.pX + dx, 12, G.PF.w - 12);
+      G.player.y = clamp(T.pY + dy, 16, G.PF.h - 14);
+      if (Math.abs(dx) + Math.abs(dy) > 1) { G.player.lastDirX = dx; G.player.lastDirY = dy; }
+      if (dot) dot.style.transform = 'translate(' + clamp(dx, -60, 60) + 'px,' + clamp(dy, -60, 60) + 'px)';
+    };
+    const onMoveUp = e => { if (e.pointerId !== pid) return; pid = null; if (stick) stick.classList.remove('on'); };
+    move.addEventListener('pointerdown', onMoveDown);
+    move.addEventListener('pointermove', onMoveMove);
+    move.addEventListener('pointerup', onMoveUp);
+    move.addEventListener('pointercancel', onMoveUp);
+
+    // 右侧四个动作按钮
+    ui.querySelectorAll('.tbtn').forEach(btn => {
+      const act = btn.dataset.act;
+      btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        if (G.state !== 'playing') return;
+        btn.classList.add('press');
+        try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+        if (act === 'fire') G.tbtn.fire = true;
+        else if (act === 'dash') G.tedge.dash = true;
+        else if (act === 'bomb') G.tedge.bomb = true;
+        else if (act === 'switch') G.tedge.switch = true;
+      });
+      const release = e => {
+        e.preventDefault();
+        btn.classList.remove('press');
+        if (act === 'fire') G.tbtn.fire = false;
+      };
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('pointerleave', () => { if (act === 'fire') { G.tbtn.fire = false; btn.classList.remove('press'); } });
+    });
+
+    // 右上角退出 → 暂停（Pause 面板含继续 / 返回标题）
+    if (exit) exit.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (G.state === 'playing') G.game.togglePause();
+    });
+
+    G.setTouchVis = function () {
+      const playing = G.state === 'playing';
+      if (ui) ui.classList.toggle('show', playing);
+      if (!playing) {           // 离场时清空所有触摸态，避免「卡住射击/冲刺」等残留
+        G.tbtn.fire = false; G.tedge.dash = G.tedge.bomb = G.tedge.switch = false;
+        if (stick) stick.classList.remove('on');
+      }
+    };
   };
 
   /* ---------- 自适应任意浏览器窗口 ----------

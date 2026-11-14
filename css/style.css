@@ -213,3 +213,43 @@ kbd{font-family:var(--gothic);background:rgba(232,197,122,.16);border:1px solid 
   font-family:var(--mincho);font-size:15px;letter-spacing:2px;color:#fff0dc;padding:8px 24px;opacity:0;
   background:linear-gradient(90deg,transparent,rgba(120,25,55,.85),transparent);transition:opacity .3s}
 #toast.show{opacity:1}
+
+/* ===========================================================
+ * 移动端触摸控制（仅 touch 设备 + 游戏中显示）
+ * 元素置于 #app 内，随游戏 transform:scale 一起缩放，
+ * 因此按钮大小随网页整体自适应。
+ * =========================================================== */
+#touch-ui { display: none; position: absolute; inset: 0; z-index: 60; pointer-events: none; touch-action: none; }
+body.touch #touch-ui.show { display: block; }
+
+#touch-move { position: absolute; left: 0; top: 0; width: 600px; height: 800px; pointer-events: auto; }
+
+#touch-stick { position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px;
+  border: 3px solid rgba(255,200,225,.5); border-radius: 50%; background: rgba(255,180,210,.10);
+  pointer-events: none; display: none; }
+#touch-stick.on { display: block; }
+#touch-stick i { position: absolute; left: 75px; top: 75px; width: 54px; height: 54px; margin: -27px 0 0 -27px;
+  border-radius: 50%; background: rgba(255,255,255,.4); }
+
+#touch-pad { position: absolute; right: 0; top: 0; width: 600px; height: 800px; pointer-events: auto; }
+
+.tbtn { position: absolute; width: 180px; height: 180px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.55); background: rgba(20,12,30,.42);
+  color: #fff; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  pointer-events: auto; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  transition: transform .05s, background .1s; }
+.tbtn b { font-size: 36px; font-weight: 800; letter-spacing: 3px; }
+.tbtn span { font-size: 16px; opacity: .65; font-weight: 400; letter-spacing: 1px; }
+.tbtn.press { transform: scale(.9); background: rgba(255,255,255,.22); border-color: #fff; }
+.tbtn.switch { left: 40px;  top: 300px; border-color: rgba(170,255,220,.75); }
+.tbtn.bomb   { left: 300px; top: 300px; border-color: rgba(255,150,190,.75); }
+.tbtn.fire   { left: 40px;  top: 480px; border-color: rgba(160,220,255,.75); }
+.tbtn.dash   { left: 300px; top: 480px; border-color: rgba(255,224,160,.75); }
+
+#touch-exit { position: absolute; right: 20px; top: 20px; width: 64px; height: 64px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.5); background: rgba(20,12,30,.45); color: #fff;
+  font-size: 30px; line-height: 1; pointer-events: auto; -webkit-user-select: none; user-select: none;
+  display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+#touch-exit.press { background: rgba(255,255,255,.22); }

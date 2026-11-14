@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>东方残符异变 ～ Fragmented Spellcard Incident.</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -115,6 +115,19 @@
   </section>
 
   <div id="toast"></div>
+
+  <!-- ============ 移动端触摸控制（仅触摸设备 / 游戏中显示） ============ -->
+  <div id="touch-ui">
+    <div id="touch-move"></div>
+    <div id="touch-stick"><i></i></div>
+    <div id="touch-pad">
+      <button type="button" class="tbtn switch" data-act="switch"><b>切换</b><span>符卡</span></button>
+      <button type="button" class="tbtn bomb" data-act="bomb"><b>大招</b><span>灵力</span></button>
+      <button type="button" class="tbtn fire" data-act="fire"><b>射击</b><span>长按</span></button>
+      <button type="button" class="tbtn dash" data-act="dash"><b>冲刺</b><span>无敌</span></button>
+    </div>
+    <button type="button" id="touch-exit" aria-label="退出">✕</button>
+  </div>
 </div>
 
 <script src="js/core.js"></script>
