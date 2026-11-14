@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>东方残符异变 ～ Fragmented Spellcard Incident.</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" width="1200" height="800"></canvas>
+  <div id="frame-deco"></div>
+
+  <!-- 全局语言切换 -->
+  <div id="lang-btn" title="切换语言 / 言語切替（F3）">
+    <span class="lb-flag">◈</span><span id="lang-label">简体中文</span>
+    <span data-i18n="lang.alt" style="opacity:.55;font-size:10px;margin-left:5px">/ 日本語</span>
+  </div>
+
+  <!-- 樱花飘落装饰层 -->
+  <div id="petals"></div>
+
+  <!-- ============ 标题画面 ============ -->
+  <section class="screen" id="scr-title">
+    <div class="title-wrap">
+      <div class="title-seal" data-i18n="title.seal">異変</div>
+      <div class="title-sub" data-i18n="title.sub">东方风弹幕射击 · 原创致敬作品</div>
+      <h1 class="title-main" data-i18n="title.main">东方残符异变</h1>
+      <div class="title-ja" data-i18n="title.zh">東方残符異変</div>
+      <div class="title-en" data-i18n="title.en">～ Fragmented Spellcard Incident.</div>
+      <div class="title-rule"></div>
+      <p class="title-flavor" data-i18n="title.flavor" data-i18n-html>被遗忘的符札，在结界内侧睁开了眼。<br>符卡的规则，被悄然改写。</p>
+      <div class="menu-list" id="title-menu"></div>
+      <div class="title-foot" data-i18n="title.foot">© 星屑工坊 · 弹幕 / 音乐 / 剧本 全原创 · 致敬东方Project（非官方二次创作）</div>
+    </div>
+  </section>
+
+  <!-- ============ 自机选择 ============ -->
+  <section class="screen hidden" id="scr-select">
+    <div class="panel wide">
+      <div class="panel-head"><span class="panel-deco">◆</span><h2 data-i18n="select.head" data-i18n-html>自机选择 &nbsp;— 选择机体</h2><span class="panel-deco">◆</span></div>
+      <div class="select-body">
+        <div class="char-cards" id="char-cards"></div>
+        <div class="char-detail" id="char-detail"></div>
+      </div>
+      <div class="diff-row" id="diff-row"></div>
+      <div class="diff-note" id="diff-note"></div>
+      <div class="panel-foot">
+        <button class="btn ghost" data-act="to-title" data-i18n="btn.backTitle">← 返回</button>
+        <button class="btn primary" data-act="to-config" data-i18n="btn.toConfig">确定 · 配置符卡 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 符卡配置 ============ -->
+  <section class="screen hidden" id="scr-config">
+    <div class="panel wide">
+      <div class="panel-head"><span class="panel-deco">◆</span><h2 data-i18n="config.head" data-i18n-html>符卡编成 &nbsp;— 装备五张符卡</h2><span class="panel-deco">◆</span></div>
+      <div class="config-hint" data-i18n="config.hint" data-i18n-html>战斗中以 <kbd>C</kbd> 循环切换 / <kbd>1</kbd>～<kbd>5</kbd> 直选。可重复装备同一张符卡。被击中时有 0.5 秒决断时间：发动大招则无事，否则该符卡破碎。</div>
+      <div class="config-slots" id="config-slots"></div>
+      <div class="config-lib" id="config-lib"></div>
+      <div class="panel-foot">
+        <button class="btn ghost" data-act="to-select" data-i18n="btn.toSelect">← 返回机体选择</button>
+        <button class="btn ghost" data-act="random-config" data-i18n="btn.random">🎲 随机编成</button>
+        <button class="btn primary" data-act="start-game" data-i18n="btn.start">出击 · 开始异变调查 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 剧情对话 ============ -->
+  <section class="screen transparent hidden" id="scr-story">
+    <div class="dialog-box" id="dialog-box">
+      <div class="dialog-name" id="dialog-name"></div>
+      <div class="dialog-text" id="dialog-text"></div>
+      <div class="dialog-next" id="dialog-next">▼ 点击 / Z / Enter 继续</div>
+    </div>
+  </section>
+
+  <!-- ============ 暂停 ============ -->
+  <section class="screen hidden" id="scr-pause">
+    <div class="panel narrow">
+      <div class="panel-head"><h2 data-i18n="pause.head" data-i18n-html>暂停 &nbsp;— PAUSE</h2></div>
+      <div class="pause-body" id="pause-body"></div>
+      <div class="panel-foot center">
+        <button class="btn primary" data-act="resume" data-i18n="btn.resume">继续 (Esc)</button>
+        <button class="btn ghost" data-act="to-title" data-i18n="btn.giveup">放弃并返回标题</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 结算 ============ -->
+  <section class="screen hidden" id="scr-result">
+    <div class="panel narrow">
+      <div class="panel-head"><h2 id="result-title">异变解决</h2></div>
+      <div class="result-body" id="result-body"></div>
+      <div class="panel-foot center">
+        <button class="btn primary" data-act="continue" data-i18n="btn.continue" id="btn-continue" style="display:none">赖皮再战</button>
+        <button class="btn primary" data-act="retry" data-i18n="btn.retry">再挑战</button>
+        <button class="btn ghost" data-act="to-config" data-i18n="btn.redeck">重新编成符卡</button>
+        <button class="btn ghost" data-act="to-title" data-i18n="btn.backTitle">返回标题</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 资料室 / 音乐鉴赏 ============ -->
+  <section class="screen hidden" id="scr-gallery">
+    <div class="panel wide">
+      <div class="panel-head"><span class="panel-deco">◆</span><h2 data-i18n="gallery.head" data-i18n-html>资料室 &nbsp;— 设定・音乐鉴赏</h2><span class="panel-deco">◆</span></div>
+      <div class="gallery-tabs" id="gallery-tabs"></div>
+      <div class="gallery-body" id="gallery-body"></div>
+      <div class="panel-foot">
+        <button class="btn ghost" data-act="to-title" data-i18n="btn.backTitle">← 返回标题</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast"></div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/music.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/data.js"></script>
+<script src="js/patterns.js"></script>
+<script src="js/bosses.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/render.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
