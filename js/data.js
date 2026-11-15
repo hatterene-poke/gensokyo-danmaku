@@ -86,7 +86,7 @@
       desc: '高速时发射四条细激光随机快速扫射；低速时集中向前。',
       descJa: '高速では四本の細いレーザーが素早く乱扫し、低速では前方へ集中する。',
       kindZh: '四线乱扫 / 前向集中', kindJa: '四線乱扫 / 前方集中',
-      shot: { type: 'masterSpark', count: 4, rate: 4, speed: 1700, dmg: 18, sprite: 'needle', color: 'cream' },
+      shot: { type: 'masterSpark', count: 4, rate: 2, speed: 1700, dmg: 18, sprite: 'needle', color: 'cream' },
       bomb: { name: '大招「十二线狂扫」', desc: '2 秒无敌后全屏伤害并清弹，12 条激光极速乱扫 3 秒。',
         type: 'cross', color: 'cream', power: 340, dur: 3, radius: 700, fx: 'masterSpark', script: 'laserMad' }
     }),

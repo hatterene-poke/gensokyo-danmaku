@@ -425,8 +425,10 @@
   };
   /* 圆形冲击波：一整圈可见的波前向外扩散，敌人被波前扫到即结算一次伤害。
      不再用 16 颗子弹拼成环 —— 那既会被当作子弹逐颗判定，视觉上也有缺口。 */
-  GM.shock = (x, y, dmg, color, radMax) => {
-    G.waves.push({ x, y, r: 10, radMax: radMax || 320, spd: 620,
+  GM.shock = (x, y, dmg, color, radMax, spd) => {
+    const max = radMax || 320;
+    /* 默认速度让波前约 0.5 秒扫完半径；全屏波会传更大的速度覆盖整个画面 */
+    G.waves.push({ x, y, r: 10, radMax: max, spd: spd || Math.max(620, max * 2),
       dmg, color, hit: new Set(), width: 12, dead: false });
   };
   /* 波前推进 + 命中结算：每个目标每圈只吃一次伤害 */
@@ -582,9 +584,10 @@
   };
   /* 5 浮游炮：按开火键向前发射星星子弹（炮台本身在 tickSpell） */
   E.meteor = c => {
+    /* 直射星星子弹伤害降到 1/3；浮游炮自身的索敌弹在 tickSpell 里，不受影响 */
     for (let i = 0; i < 3; i++)
       c.mk(c.p.x + (i - 1) * 12 * c.ff, c.p.y - 14, c.up, c.sh.speed,
-        { sprite: 'star', color: 'gold', r: 5, dmg: c.sh.dmg, life: 1.2 });
+        { sprite: 'star', color: 'gold', r: 5, dmg: c.sh.dmg / 3, life: 1.2 });
   };
 
   /* ---------------- 咲夜：五张飞刀贴图与轨迹各不相同 ---------------- */
@@ -667,17 +670,23 @@
           r: mode ? 16 : 9, zoneR: mode ? 46 : 22, spin: 4
         });
         if (mode) {
-          /* 低速：每秒 60 张，随机 ±15 度偏转 */
-          GM.raw({ x: p.x + M.rand(-14, 14), y: p.y + dy,
-            angle: -Math.PI / 2 + M.rand(-.26, .26), speed: 1500,
-            sprite: 'ofuda', color: 'crimson', dmg, r: 6, life: 1.2, tag: 'talisman' });
-        } else if (F % 5 === 0) {
-          /* 高速：五个法阵「同时」各射一张 = 每阵每秒 12 张（合计 60 张） */
-          for (const dx of xs)
-            GM.raw({ x: p.x + dx, y: p.y + dy,
+          /* 低速：每秒 120 张（原 60 的 2 倍），随机 ±15 度偏转 */
+          for (let k = 0; k < 2; k++)
+            GM.raw({ x: p.x + M.rand(-14, 14), y: p.y + dy,
               angle: -Math.PI / 2 + M.rand(-.26, .26), speed: 1500,
-              sprite: 'ofuda', color: 'crimson', dmg: dmg * 1.2, r: 6,
-              life: 1.2, tag: 'talisman' });
+              sprite: 'ofuda', color: 'crimson', dmg: dmg * .75, r: 6, life: 1.2, tag: 'talisman' });
+        } else {
+          /* 高速：频率翻倍为每阵每秒 24 张。用索引跳变触发（2.5 帧一拍），
+             五阵仍严格同时发射，造型不被拆散。 */
+          const beat = Math.floor(F * 2 / 5);
+          if (GM._kekkaiBeat !== beat) {
+            GM._kekkaiBeat = beat;
+            for (const dx of xs)
+              GM.raw({ x: p.x + dx, y: p.y + dy,
+                angle: -Math.PI / 2 + M.rand(-.26, .26), speed: 1500,
+                sprite: 'ofuda', color: 'crimson', dmg: dmg * .9, r: 6,
+                life: 1.2, tag: 'talisman' });
+          }
         }
         break;
       }
@@ -716,8 +725,10 @@
         break;
       }
       case 'torii': {
-        /* 结界：整圈圆形波向外扩散，每秒 10 波，高低速相同 */
-        if (F % 6 === 0) GM.shock(p.x, p.y - 10, dmg * .8, 'cyan', 340);
+        /* 结界：一秒一道的全屏冲击波，伤害为基准的 40 倍。
+           半径给到画面对角线，确保波前扫过整个场地。 */
+        if (F % 60 === 0)
+          GM.shock(p.x, p.y - 10, dmg * 20, 'cyan', 1200, 2400);
         break;
       }
       case 'meteor': {
@@ -842,11 +853,11 @@
         break;
       }
       case 'chaos': {
-        /* 2 秒内每秒 300 张符纸（每帧 5 张）自法阵额外射出 */
-        if (u < 2) for (let i = 0; i < 5; i++)
+        /* 2 秒内每秒 600 张符纸（每帧 10 张，原 5 张翻倍）自法阵额外射出 */
+        if (u < 2) for (let i = 0; i < 10; i++)
           GM.raw({ x: px + M.rand(-170, 170), y: py + 20,
             angle: -Math.PI / 2 + M.rand(-.26, .26), speed: 1500,
-            sprite: 'ofuda', color: 'crimson', dmg: 14, r: 5,
+            sprite: 'ofuda', color: 'crimson', dmg: 10.5, r: 5,
             life: 1.0, tag: 'bombShot' });
         break;
       }

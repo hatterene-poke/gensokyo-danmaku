@@ -61,22 +61,25 @@
         script(b, f) {
           drift(b, f, G.PF.w / 2, 158, 95, 26, .005);
           const t = tier();
-          /* 主造型：每 64 帧洇开一组同心光轮，环上每一发都严格等距 */
+          /* 主造型（本符唯一母题）：一笔挥成缓缓旋转的六瓣墨花。
+             层间错开半瓣、外快内慢，整体是一朵可辨认的花。 */
           if (f % 64 === 0) {
             const k = Math.floor(f / 64);
-            P.multiRing(T('ink', {
-              x: b.x, y: b.y, n: 16, layers: t === 0 ? 1 : 2,
-              speedStep: 28, nStep: 4, rotStep: .09,
-              a0: k * .14 * (t === 3 ? -1 : 1), speed: 132,
+            P.petalSpiral(T('ink', {
+              x: b.x, y: b.y, n: 24, layers: t === 0 ? 1 : t >= 2 ? 3 : 2,
+              petals: 6, speed: 128, speedStep: 22,
+              spinDir: t === 3 ? -1 : 1, spinSpd: .12,
+              a0: k * .14, curve: .08,
               colors: t === 0 ? ['violet'] : t === 1 ? ['violet', 'cream']
                 : t === 2 ? ['violet', 'cream', 'ink'] : ['violet', 'cream', 'ink', 'gold'],
-              r: 6, life: 12
+              type: 'ink', r: 6, life: 12
             }));
           }
-          /* 副造型：每 128 帧一朵工整的六瓣花，瓣数固定、角度等分 */
-          if (f % 128 === 64) P.flower(T('ofuda', {
-            x: b.x, y: b.y, n: 24, petals: 6, amp: .34,
-            a0: -f * .004, speed: 118, r: 6, color: 'crimson', life: 12
+          /* 副造型：花心向外荡开一圈同心波纹，补足「墨洇」的层次 */
+          if (f % 128 === 64) P.waveRings(T('cream', {
+            x: b.x, y: b.y, n: 20, rings: 2, r0: 14, gap: 26,
+            speed: 120, ringDelay: .08, colors: ['cream', 'gold'],
+            type: 'orb', r: 5, life: 11
           }));
           /* 两拍骤停：第 10～12 秒完全不发弹，像笔尖悬在纸上 */
           if (f > 600 && f < 720) return;
@@ -125,19 +128,24 @@
         script(b, f) {
           drift(b, f, G.PF.w / 2, 152, 120, 34, .007);
           const t = tier();
-          /* 主造型：整页方格阵，行列严格等距、逐行延时起动 */
-          if (f % 60 === 0) P.page(T('ofuda', {
-            cols: 9, rows: 5, n: 45,
-            gap: G.PF.w * (.5 + .28 * Math.sin(f * .004)), gapW: 68,
-            rowDelay: .05, dy: 34,
-            y0: -10 + (Math.floor(f / 60) % 3) * 168,
-            speed: 128, r: 7, life: 11,
-            color: f % 120 === 0 ? 'gold' : 'crimson'
-          }));
-          /* 副造型：留一处安全缺口的等距札墙 */
-          if (f % 150 === 0) P.wall(T('cream', {
-            y: -8, speed: 122, step: 30, gapW: 72,
-            gap: G.PF.w * (.5 + .3 * Math.sin(f * .0035)), r: 7
+          /* 主造型（本符唯一母题）：烟花式的多重等距光轮，
+             一层层旋转着升上夜空——对应「孔雀七輪星」的原作造型。 */
+          if (f % 60 === 0) {
+            const k = Math.floor(f / 60);
+            P.multiRing(T('ofuda', {
+              x: G.PF.w / 2, y: 150 + (k % 3) * 46,
+              n: 16, layers: t === 0 ? 2 : 3,
+              speedStep: 26, nStep: 4, rotStep: .11,
+              a0: k * .17 * (t === 3 ? -1 : 1), speed: 124,
+              colors: ['crimson', 'gold', 'cream'],
+              type: 'ofuda', r: 7, life: 12
+            }));
+          }
+          /* 副造型：一圈自上方荡下的等距波纹，代替散乱的落弹 */
+          if (f % 150 === 0) P.waveRings(T('cream', {
+            x: G.PF.w / 2, y: -10, n: 20, rings: 2,
+            r0: 24, gap: 42, speed: 116, ringDelay: .09,
+            colors: ['cream', 'gold'], type: 'card', r: 6, life: 11
           }));
           /* --- 四档专属修饰 --- */
           if (t === 1) {

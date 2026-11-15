@@ -527,6 +527,49 @@
       }));
   };
 
+  /* ---------- 花瓣螺旋：原作「華符」常见的旋转花瓣 ----------
+     每层花瓣数固定、层间错开半瓣，整体是一朵缓缓转动的花。
+     与普通 ring 的区别：速度按 cos(花瓣数×角) 起伏，轮廓是花瓣而非圆。 */
+  P.petalSpiral = function (o) {
+    o = base(o);
+    const layers = o.layers || 2, petals = o.petals || 6;
+    const cols = o.colors || [o.color];
+    for (let L = 0; L < layers; L++) {
+      const n = o.n || petals * 4;
+      const spin = o.a0 + L * Math.PI / petals + (o.spinDir || 1) * G.rtime * (o.spinSpd || .12) * L;
+      for (let i = 0; i < n; i++) {
+        const a = spin + i / n * TAU;
+        /* 花瓣轮廓：cos 的绝对值决定「瓣」，层间反相形成交错 */
+        const k = Math.abs(Math.cos(petals * (a - spin) / 2));
+        const sp = o.speed * (.55 + .65 * k) + L * (o.speedStep || 0);
+        emit(Object.assign({}, o, { color: cols[L % cols.length], type: o.type || 'petal',
+          curve: (L % 2 ? 1 : -1) * (o.curve || .08) }), a, sp);
+      }
+    }
+  };
+
+  /* ---------- 同心波纹：一圈圈自中心荡开的等距波 ----------
+     原作「波符」「月面波纹」式的层层环，每层半径错开、延迟起动，
+     在空中形成清晰的同心圆，而不是一堆朝各方向乱飞的弹。 */
+  P.waveRings = function (o) {
+    o = base(o);
+    const rings = o.rings || 4, n = o.n || 24;
+    const cols = o.colors || [o.color];
+    for (let k = 0; k < rings; k++) {
+      const R = (o.r0 || 18) + k * (o.gap || 30);
+      const sp = (o.outSpeed === false ? -1 : 1) * (o.speed * .28 + k * (o.speedStep || 8));
+      for (let i = 0; i < n; i++) {
+        const a = o.a0 + k * (o.rotStep || .05) + i / n * TAU;
+        emit(Object.assign({}, o, {
+          x: o.x + Math.cos(a) * R, y: o.y + Math.sin(a) * R,
+          delay: k * (o.ringDelay || .10),
+          color: cols[k % cols.length], type: o.type || 'orb',
+          accel: o.accel || 160
+        }), a, -sp);   // 负号：朝圆心收拢后由 accel 反向推开，形成「荡开」感
+      }
+    }
+  };
+
   /* ---------- 主题预设：让 Boss 符卡脚本更简洁 ---------- */
   P.themes = {
     ink: { color: 'ink', type: 'ink', r: 6, speed: 165 },

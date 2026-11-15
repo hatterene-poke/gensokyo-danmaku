@@ -238,23 +238,40 @@
     g.fillStyle = glow; g.beginPath(); g.arc(0, 0, pad, 0, G.TAU); g.fill();
     g.lineJoin = 'round'; g.lineCap = 'round';
 
+    /* 东方原版弹丸的共同做法：内白芯 → 中段饱和色 → 外圈同色光晕 →
+       一圈细白高光边。正是这几层让整片弹幕在深色背景上「发亮」，
+       而不是一堆平涂的色块。下面给所有类型统一铺底光。 */
+    const halo = g.createRadialGradient(0, 0, rr * .3, 0, 0, rr * 1.75);
+    halo.addColorStop(0, c + 'cc'); halo.addColorStop(.55, c + '66'); halo.addColorStop(1, c + '00');
+    g.fillStyle = halo; g.beginPath(); g.arc(0, 0, rr * 1.75, 0, G.TAU); g.fill();
+    /* 通用白芯工具：大部分弹种最后都会点一颗，保证「芯」的一致性 */
+    const coreDot = (k = .34, a = .92) => {
+      g.fillStyle = '#fff'; g.globalAlpha = a;
+      g.beginPath(); g.arc(0, 0, rr * k, 0, G.TAU); g.fill(); g.globalAlpha = 1;
+    };
+
     switch (type) {
       case 'orb': case 'big': {
-        g.fillStyle = c; g.globalAlpha = .95;
+        /* 原版玉弹：外白细环 → 彩色球体 → 内白高光 → 偏心小反光点 */
+        g.fillStyle = c; g.globalAlpha = .96;
         g.beginPath(); g.arc(0, 0, rr, 0, G.TAU); g.fill();
         g.globalAlpha = 1;
-        g.strokeStyle = '#fff'; g.lineWidth = Math.max(1, rr * .16);
-        g.beginPath(); g.arc(0, 0, rr * .9, 0, G.TAU); g.stroke();
-        g.fillStyle = '#ffffff'; g.globalAlpha = .92;
-        g.beginPath(); g.arc(0, 0, rr * .42, 0, G.TAU); g.fill();
-        g.globalAlpha = .55; g.fillStyle = c;
-        g.beginPath(); g.arc(0, 0, rr * .62, 0, G.TAU); g.fill();
+        g.strokeStyle = '#ffffff'; g.lineWidth = Math.max(1.2, rr * .20);
+        g.beginPath(); g.arc(0, 0, rr * .92, 0, G.TAU); g.stroke();
+        g.fillStyle = '#fff'; g.globalAlpha = .30;
+        g.beginPath(); g.arc(0, 0, rr * .66, 0, G.TAU); g.fill();
+        coreDot(.40, .95);
+        g.fillStyle = '#fff'; g.globalAlpha = .7;
+        g.beginPath(); g.arc(-rr * .34, -rr * .36, rr * .13, 0, G.TAU); g.fill();
+        g.globalAlpha = 1;
         break;
       }
       case 'small': case 'shot': {
+        /* 小弹也要有芯，否则密集阵列时只剩一片色点 */
         g.fillStyle = c; g.beginPath(); g.arc(0, 0, rr, 0, G.TAU); g.fill();
-        g.fillStyle = '#fff'; g.globalAlpha = .85;
-        g.beginPath(); g.arc(0, 0, rr * .5, 0, G.TAU); g.fill();
+        g.strokeStyle = '#fff'; g.globalAlpha = .7; g.lineWidth = Math.max(1, rr * .16);
+        g.beginPath(); g.arc(0, 0, rr * .86, 0, G.TAU); g.stroke();
+        coreDot(.46, .92);
         break;
       }
       case 'needle': case 'kunai': {
@@ -278,9 +295,12 @@
           g.fillRect(-W * .55, i * H * .42 - 1, W * 1.1, Math.max(1.2, rr * .16));
         }
         g.fillRect(-1, -H * .85, 2, H * 1.7);
+        /* 御札也点一颗亮芯，密集札阵时才不会糊成一片白纸 */
+        coreDot(.16, .9);
         break;
       }
       case 'petal': {
+        /* 花瓣弹加白描边与中脉，成环开放时才像「花」而不是色斑 */
         g.rotate(-.4);
         g.fillStyle = c;
         g.beginPath();
@@ -288,41 +308,47 @@
         g.bezierCurveTo(rr * 1.3, -rr * .7, rr * .9, rr * 1.1, 0, rr * 1.4);
         g.bezierCurveTo(-rr * .9, rr * 1.1, -rr * 1.3, -rr * .7, 0, -rr * 1.5);
         g.fill();
-        g.strokeStyle = '#fff8'; g.lineWidth = 1; g.stroke();
-        g.fillStyle = '#fff'; g.globalAlpha = .65;
-        g.beginPath(); g.ellipse(0, 0, rr * .22, rr * .8, 0, 0, G.TAU); g.fill();
+        g.strokeStyle = '#fff'; g.globalAlpha = .8; g.lineWidth = Math.max(1, rr * .12); g.stroke();
+        g.fillStyle = '#fff'; g.globalAlpha = .72;
+        g.beginPath(); g.ellipse(0, 0, rr * .18, rr * .82, 0, 0, G.TAU); g.fill();
         break;
       }
       case 'star': {
+        /* 原版星弹：双描边（外白内暗）+ 亮芯，尖端才不会糊成一团 */
         g.fillStyle = c; g.beginPath();
         for (let i = 0; i < 10; i++) {
           const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? rr * .45 : rr * 1.25;
           i ? g.lineTo(Math.cos(a) * rad, Math.sin(a) * rad) : g.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
         }
         g.closePath(); g.fill();
-        g.fillStyle = '#fff'; g.globalAlpha = .8;
-        g.beginPath(); g.arc(0, 0, rr * .3, 0, G.TAU); g.fill();
+        g.strokeStyle = '#fff'; g.lineWidth = Math.max(1, rr * .13); g.globalAlpha = .85; g.stroke();
+        coreDot(.28, .9);
         break;
       }
       case 'ink': {
-        g.fillStyle = c;
-        g.beginPath();
-        for (let i = 0; i < 9; i++) {
-          const a = i / 9 * G.TAU, rad = rr * (.75 + .42 * Math.sin(i * 2.7 + rr));
+        /* 墨玉收成规整八瓣墨花：不再是随机九点，密集时才有重复纹样 */
+        const petals = 8;
+        g.fillStyle = c; g.beginPath();
+        for (let i = 0; i < petals * 2; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / petals;
+          const rad = i % 2 ? rr * .52 : rr * 1.06;
           i ? g.lineTo(Math.cos(a) * rad, Math.sin(a) * rad) : g.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
         }
         g.closePath(); g.fill();
-        g.fillStyle = '#fff'; g.globalAlpha = .35;
-        g.beginPath(); g.arc(-rr * .2, -rr * .2, rr * .3, 0, G.TAU); g.fill();
+        g.strokeStyle = '#fff'; g.globalAlpha = .55;
+        g.lineWidth = Math.max(1, rr * .12); g.stroke();
+        coreDot(.26, .75);
         break;
       }
       case 'mirror': case 'crystal': {
+        /* 晶体弹：菱形＋内描边＋亮芯，是原版最常见的「箭形玉」 */
         g.fillStyle = c; g.beginPath();
         g.moveTo(0, -rr * 1.4); g.lineTo(rr * .85, 0); g.lineTo(0, rr * 1.4); g.lineTo(-rr * .85, 0);
         g.closePath(); g.fill();
         g.strokeStyle = '#fff'; g.lineWidth = Math.max(1, rr * .2); g.stroke();
-        g.fillStyle = '#fff'; g.globalAlpha = .8;
+        g.fillStyle = '#fff'; g.globalAlpha = .45;
         g.beginPath(); g.moveTo(0, -rr * 1.4); g.lineTo(0, rr * 1.4); g.lineTo(-rr * .85, 0); g.closePath(); g.fill();
+        coreDot(.22, .9);
         break;
       }
       case 'butterfly': {
@@ -345,6 +371,7 @@
         g.fill();
         g.fillStyle = '#fff8c0'; g.globalAlpha = .9;
         g.beginPath(); g.ellipse(0, rr * .4, rr * .35, rr * .65, 0, 0, G.TAU); g.fill();
+        coreDot(.20, .85);
         break;
       }
       case 'ring': {
@@ -364,6 +391,9 @@
       }
       default: {
         g.fillStyle = c; g.beginPath(); g.arc(0, 0, rr, 0, G.TAU); g.fill();
+        g.strokeStyle = '#fff'; g.globalAlpha = .7; g.lineWidth = Math.max(1, rr * .15);
+        g.beginPath(); g.arc(0, 0, rr * .88, 0, G.TAU); g.stroke();
+        coreDot(.42, .9);
       }
     }
     const spr = { canvas: cv, half: S / 2, size: S };

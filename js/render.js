@@ -426,10 +426,7 @@
     ctx.beginPath(); ctx.moveTo(-12, -19); ctx.quadraticCurveTo(0, -33, 12, -19);
     ctx.quadraticCurveTo(7, -22, 3, -18); ctx.quadraticCurveTo(0, -24, -4, -18);
     ctx.quadraticCurveTo(-8, -23, -12, -19); ctx.fill();
-    // 眼
-    ctx.fillStyle = o.eye || '#3a2030';
-    ctx.beginPath(); ctx.ellipse(-4.2, -14, 1.5, 2.4, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(4.2, -14, 1.5, 2.4, 0, 0, TAU); ctx.fill();
+    /* 不画眼睛：留白的脸更有幻想乡剪影的味道 */
     ctx.restore();
   }
 
@@ -640,10 +637,7 @@
     ctx.beginPath(); ctx.moveTo(-16, -32); ctx.quadraticCurveTo(0, -50, 16, -32);
     ctx.quadraticCurveTo(9, -36, 3, -29); ctx.quadraticCurveTo(0, -37, -5, -29);
     ctx.quadraticCurveTo(-10, -36, -16, -32); ctx.fill();
-    ctx.fillStyle = '#3a2230';
-    ctx.beginPath(); ctx.ellipse(-5.5, -25, 1.9, 2.8, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5.5, -25, 1.9, 2.8, 0, 0, TAU); ctx.fill();
-
+    /* 不画眼睛：Boss 立绘也用留白的脸 */
     // 各人特征
     if (d.id === 'chiyo') {
       // 卷轴与笔、飘浮札纸
