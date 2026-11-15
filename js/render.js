@@ -281,6 +281,61 @@
     ctx.restore();
   };
 
+  /* 逆行时钟：12 刻度表盘 + 一根正对当前发射位置的指针 */
+  R.drawClockFace = function () {
+    const gm = G.game, p = G.player;
+    if (!gm || !p || !p.alive || G.state !== 'playing') return;
+    const sp = G.getSpell ? G.getSpell(p.charId, p.slots[p.slot].idx) : null;
+    if (!sp || sp.shot.type !== 'clockDial' || !gm.clockFace) return;
+    const f = gm.clockFace;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(192,122,255,.55)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(0, 0, f.r, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = .35;
+    ctx.beginPath(); ctx.arc(0, 0, f.r - 5, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = .9;
+    for (let i = 0; i < 12; i++) {
+      const a = -Math.PI / 2 + i / 12 * TAU;
+      const c = Math.cos(a), s = Math.sin(a);
+      ctx.beginPath();
+      ctx.moveTo(c * (f.r - 4), s * (f.r - 4));
+      ctx.lineTo(c * (f.r + 4), s * (f.r + 4));
+      ctx.lineWidth = i % 3 === 0 ? 2 : 1;
+      ctx.stroke();
+    }
+    /* 逆时针行进的指针：角度与本次发射的镜刃完全同向 */
+    ctx.save(); ctx.rotate(f.ang + Math.PI / 2);
+    ctx.strokeStyle = '#e6c0ff'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, -f.r + 2); ctx.stroke();
+    ctx.fillStyle = '#c07aff';
+    ctx.beginPath(); ctx.arc(0, -f.r + 2, 3, 0, TAU); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  };
+
+  /* 圆形冲击波：一整圈由内向外推进的波前 */
+  R.drawWaves = function () {
+    if (!G.waves || !G.waves.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const w of G.waves) {
+      const k = 1 - w.r / w.radMax;
+      if (k <= 0) continue;
+      const c = C[w.color] || '#fff';
+      ctx.globalAlpha = .10 + .55 * k;
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 2 + 5 * k;
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = .06 + .22 * k;
+      ctx.lineWidth = 12 + 16 * k;
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  };
+
   /* ================= 激光 ================= */
   R.drawLasers = function () {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -1409,12 +1464,14 @@
       /* 自机弹幕画在最底层：敌弹、激光、Boss、杂鱼一律盖在它上面，
          保证玩家永远先看清该躲什么，而不是被自己的火力糊住视野。 */
       R.drawShots();
+      R.drawWaves();
       R.drawLasers();
       for (const e of G.enemies) R.drawEnemy(e);
       if (G.boss) R.drawBoss(G.boss, false);
       R.drawBullets();
       R.drawParticles();
       if (G.player && G.player.alive) R.drawPlayer(G.player);
+      R.drawClockFace();
       R.drawBombFx(gm && gm.bombFx);
       R.drawTopBar();
       R.drawDeclare(gm && gm.declare);
@@ -1440,6 +1497,29 @@
     if (gm && gm.grace) {
       ctx.save(); ctx.globalAlpha = .18; ctx.fillStyle = '#ff3355';
       ctx.fillRect(0, 0, G.W, G.H); ctx.restore();
+    }
+    /* 时停大招：负片 = 对已渲染的画面逐像素取反色（R/G/B 各自 255-x），
+       不是盖一层白／异色遮挡。Canvas 无 image filter 时用 difference +
+       纯白 full-alpha 覆盖可得到逐通道取反，故先取消 globalAlpha。 */
+    if (G.fx.invert > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'difference';
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, G.W, G.H);
+      ctx.restore();
+    }
+    if (G.fx.warp > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(.28, G.fx.warp * .28);
+      ctx.strokeStyle = '#a8d8ff'; ctx.lineWidth = 1;
+      for (let i = 0; i < 10; i++) {
+        const y = (i + 1) / 11 * G.H + Math.sin(G.rtime * 6 + i) * 9;
+        ctx.beginPath(); ctx.moveTo(0, y);
+        for (let x = 0; x <= G.W; x += 40)
+          ctx.lineTo(x, y + Math.sin(x * .02 + G.rtime * 9 + i) * 7);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
     // 暗角
     const vg = ctx.createRadialGradient(G.W / 2, G.H / 2, 300, G.W / 2, G.H / 2, 760);

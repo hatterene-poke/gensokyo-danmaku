@@ -17,8 +17,10 @@
     tbtn: { fire: false },                                  // 触摸「射击」按住态
     touch: { anchorX: 0, anchorY: 0, pX: 0, pY: 0, moved: false },
     bullets: [], shots: [], enemies: [], particles: [], floaters: [], items: [], lasers: [],
+    waves: [],   // 圆形冲击波（弹幕结界等），以整圈扩散而非一颗颗子弹结算
     poolB: [], poolP: [], poolS: [],
-    fx: { shake: 0, shakeX: 0, shakeY: 0, flash: 0, flashColor: '#fff', chroma: 0, vignette: 0, wave: 0 },
+    fx: { shake: 0, shakeX: 0, shakeY: 0, flash: 0, flashColor: '#fff', chroma: 0,
+      vignette: 0, wave: 0, invert: 0, warp: 0 },
     spriteCache: {},
     audio: null, game: null, ui: null, render: null,
     stageIndex: 0, phase: 'idle', boss: null, player: null,
@@ -172,7 +174,7 @@
       /* 多样化机构 */
       curve: 0, ricochet: 0, satellite: 0, satT: 0, mine: 0, mineT: 0, mineN: 0,
       charge: 0, rail: 0, spin: 0, spinT: 0, rotToVel: false, px: 0, py: 0,
-      /* 30 种自机机构共用的一组运动参数 */
+      /* 15 张符卡（三大类型）共用的一组运动参数 */
       motion: 'straight', cx: 0, cy: 0, a0: 0, rad: 0, radMax: 0, radSpd: 0,
       rw1: 0, rw2: 0, rwDir: 1, growMax: 0, onHit: '', zoneR: 0,
       riseSpd: 0, orbitY: 0, blinkAt: 0, blinkDist: 0, blinked: 0,
@@ -214,7 +216,7 @@
     G.lasers.length = 0;
   };
   G.killAll = function () {
-    G.clearBullets(); G.shots.length = 0; G.enemies.length = 0;
+    G.clearBullets(); G.shots.length = 0; G.enemies.length = 0; G.waves.length = 0;
     G.particles.length = 0; G.floaters.length = 0; G.items.length = 0;
   };
 

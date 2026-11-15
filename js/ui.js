@@ -8,7 +8,7 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   U.charId = 'reimu';
-  U.deck = [0, 1, 2, 3, 9];
+  U.deck = [0, 1, 2, 3, 4];
   U.activeSlot = 0;
   U.galTab = 'story';
   U.titleSel = 0;
@@ -87,7 +87,7 @@
         <b>火力倍率</b>　×${c.stats.dmgScale.toFixed(2)}　·　<b>霊力取得</b> ×${c.stats.powerGain.toFixed(2)}
       </div>
       <div class="cd-tags">
-        <span class="tag">符卡 10 種</span><span class="tag">大招 10 種</span>
+        <span class="tag">符卡 5 種</span><span class="tag">大招 5 種</span>
         <span class="tag">専用挿入曲</span><span class="tag">原作設定準拠</span>
       </div>
       <div class="cd-table" style="margin-top:14px"><b>符卡一覧</b><br>${c.spells.map((s, i) =>
@@ -138,12 +138,13 @@
         <div class="lib-glyph" style="color:${G.COLORS[sp.color] || '#fff'}">${sp.glyph}</div>
         <div class="lib-main">
           <div class="lib-name">${esc(sp.name)}</div>
-          <div class="lib-jp">${esc(sp.jp)}　·　${zh ? esc(sp.kindZh) : esc(sp.kindJa)}　·　${esc(sp.shot.type.toUpperCase())}</div>
+          <div class="lib-jp"><b style="color:#ffe0a0">[${zh ? esc(sp.catZh) : esc(sp.catJa)}]</b>
+            　${esc(sp.jp)}　·　${zh ? esc(sp.kindZh) : esc(sp.kindJa)}　·　${esc(sp.shot.type.toUpperCase())}</div>
           <div class="lib-desc">${esc(sp.desc)}</div>
-          <div class="lib-balance">${zh ? '命中难度' : '命中難度'}：<b>${zh ? sp.accLabel : sp.accLabelJa}</b>
+          <div class="lib-balance">${zh ? '弹速' : '弾速'}：<b>${sp.shot.speed} px/s</b>
+            　${zh ? '齐射' : '斉射'}：<b>${(60 / sp.shot.rate).toFixed(0)} ${zh ? '次/秒' : '回/秒'}</b>
             　${zh ? '单发威力' : '単発威力'}：<b>${sp.shot.dmg}</b>
-            　${zh ? '理论 DPS' : '理論 DPS'}：<b>${sp.dps}</b>
-            　${zh ? '（难命中者单发更强）' : '（当て難いほど単発が強い）'}</div>
+            　${zh ? '理论 DPS' : '理論 DPS'}：<b>${sp.dps}</b></div>
           <div class="lib-bomb"><b>${esc(sp.bomb.name)}</b>　${esc(sp.bomb.desc)}</div>
         </div>
       </div>`).join('');
@@ -155,7 +156,7 @@
     U.renderConfig();
   };
   U.randomDeck = function () {
-    U.deck = Array.from({ length: 5 }, () => M.randi(0, 9));
+    U.deck = Array.from({ length: 5 }, () => M.randi(0, 4));
     G.audio.sfx('ok'); U.renderConfig(); U.toast('符卡をランダムに編成しました');
   };
 
@@ -245,21 +246,21 @@
       const zh = G.lang === 'zh';
       body.innerHTML = `<div class="gal-sec"><h3>自機　—　原作設定に準拠</h3>
         <p>${zh
-          ? '每台自机各有 <b>10 张符卡</b> 与 <b>10 种各不相同的大招</b>。出击时编成 5 张（允许重复）。'
-          : '各機体に <b>10 種の符卡</b> と、それぞれ異なる <b>10 種の大招</b>。出撃時に 5 枚を編成（重複可）。'}</p>
+          ? '每台自机固定 <b>5 张符卡</b> 与 <b>5 种大招</b>，全部落在三大类型内：<b>广域 / 追踪 / 直线</b>。出击时五张一并携带，不再从十张里挑。'
+          : '各機体に <b>5 枚の符卡</b> と <b>5 種の大招</b> を固定装備。全て <b>広域 / 追尾 / 直線</b> の三系統に収まる。出撃時は五枚すべてを携行する。'}</p>
         <p>${zh
-          ? '三台自机共使用 20 种独立射击机构（针状连射、超高速轨炮、摆振剑气、自动瞄准、卫星炮台、滞留爆雷、螺旋光刃、星屑骤雨、蓄力光弹、壁面跳弹、集束收束等），任意两张符卡的弹道都不重复。'
-          : '三機体で計 20 種の独立した射撃機構（針状連射・超高速レール・擺振剣気・自動照準・衛星砲台・滞留機雷・螺旋光刃・星屑の驟雨・溜め光弾・壁面跳弾・集束収束 ほか）を用い、同じ弾道の符卡は一枚もない。'}</p>
+          ? '<b>限制里的花样</b>：同属一类，三台自机的几何写法也不重样 —— 灵梦是札列、结界线、净化轮与鸟居；魔理沙是星屑针、魔炮、骤雨与六芒；咲夜是银刀齐掷、时穿银枪、时域与钟面。每张符卡的弹道都单独手写。'
+          : '<b>制限の中の工夫</b>：同じ系統でも三機体の幾何は重ならない。霊夢は札列・結界線・祓い輪・鳥居、魔理沙は星屑針・魔砲・驟雨・六芒、咲夜は銀刀斉投・時穿銀槍・時域・鐘面。各符卡の弾道を個別に書いた。'}</p>
         <p>${zh
-          ? '<b>强度平衡</b>：按命中难度反推单发威力 —— 越难命中，单发伤害与理论 DPS 越高；越好命中则越低。三台自机的有效输出保持在同一水准，风险与回报一一对应。'
-          : '<b>強度バランス</b>：命中の難易度から単発威力を逆算する。当て難いほど単発ダメージと理論 DPS が高く、当てやすいほど低い。三機体の実効火力は同水準に揃え、リスクとリターンを対応させた。'}</p></div>` +
+          ? '<b>统一规格</b>：主弹速度 1500～1700 px/s（约 0.45 秒穿越全场），每 4～6 帧一齐射（每秒至少 10 次）。<b>广域 / 追踪约 25 秒击破 10000 结界，直线约 12 秒</b>；单发威力按各类型的有效命中弹数逐张反推。'
+          : '<b>共通規格</b>：主弾は 1500～1700 px/s（全場を約 0.45 秒で駆け抜ける）、4～6 フレームごとの斉射（毎秒 10 回以上）。<b>広域・追尾は約 25 秒、直線は約 12 秒で結界 10000 を削る</b>。単発威力は系統ごとの有効命中弾数から一枚ずつ逆算した。'}</p></div>` +
         G.CHARS.map(c => `<div class="gal-sec"><h3 style="color:${c.color}">${esc(c.emblem)}　${esc(c.name)}　<small>${esc(c.title)}</small></h3>
           <p>${esc(c.desc)}</p><p>${esc(c.tactics)}</p>
           <table style="width:100%;font-size:12px;border-collapse:collapse">
           ${c.spells.map((s) => `<tr><td style="width:34px;color:${G.COLORS[s.color]}">${s.glyph}</td>
             <td style="width:220px">${esc(s.name)}</td>
-            <td style="width:132px;color:#9fd8c8">${zh ? esc(s.kindZh) : esc(s.kindJa)}<br>
-              <small style="color:#c9a8b8">${zh ? '命中' : '命中'} ${zh ? s.accLabel : s.accLabelJa} · ${s.shot.dmg} / DPS ${s.dps}</small></td>
+            <td style="width:150px;color:#9fd8c8"><b style="color:#ffe0a0">[${zh ? esc(s.catZh) : esc(s.catJa)}]</b> ${zh ? esc(s.kindZh) : esc(s.kindJa)}<br>
+              <small style="color:#c9a8b8">${s.shot.speed} px/s · ${(60 / s.shot.rate).toFixed(0)} ${zh ? '次/秒' : '回/秒'} · ${s.shot.dmg} / DPS ${s.dps}</small></td>
             <td style="color:#b9a7b4">${esc(s.desc)}</td>
             <td style="width:180px;color:#e2a9bb">${esc(s.bomb.name)}</td></tr>`).join('')}
           </table></div>`).join('');
@@ -283,16 +284,22 @@
           </table></div>`).join('');
     } else if (U.galTab === 'music') {
       const cur = G.audio.nowPlaying();
-      body.innerHTML = `<div class="gal-sec"><h3>楽曲一覧　—　全曲オリジナル / Web Audio 实时合成</h3>
+      body.innerHTML = `<div class="gal-sec"><h3>楽曲一覧　—　ピアノ主奏 / Web Audio 实时合成</h3>
         <p style="font-size:12px;color:#a99aa7">${esc(G.lang === 'zh' ? G.LORE.music : (G.LORE.musicJa || G.LORE.music))}</p>
+        <p style="font-size:12px;color:#e8c57a">${G.lang === 'zh'
+          ? '五首均为约三分钟一次性展开的完整曲式（呈示→模进→转调→高潮→两拍骤停→再现→终止），不再使用二十秒短循环。'
+          : '五曲はいずれも約三分の一度きりの展開（提示→模進→転調→高潮→二拍の急停止→再現→終止）。二十秒の短いループは廃止した。'}</p>
         ${G.MUSIC.order.map(id => {
         const t = G.MUSIC.tracks[id];
+        const steps = t.order.reduce((s, i) => s + t.sections[i].steps, 0);
+        const secs = Math.round(steps * 60 / t.bpm / 4);
+        const len = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
         return `<div class="music-row ${cur === id ? 'playing' : ''}" data-music="${id}">
             <div class="mr-play">${cur === id ? '❚❚' : '▶'}</div>
             <div class="mr-title">${esc(t.title)}</div>
-            <div class="mr-desc">${esc(t.jp)}　·　${t.key}　·　BPM ${t.bpm}　·　${esc(G.lang === 'zh' ? t.desc : (t.descJa || t.desc))}</div></div>`;
+            <div class="mr-desc">${esc(t.jp)}　·　${t.key}　·　BPM ${t.bpm}　·　${len}　·　${t.sections.length} ${G.lang === 'zh' ? '段' : '段落'}　·　${esc(G.lang === 'zh' ? t.desc : (t.descJa || t.desc))}</div></div>`;
       }).join('')}
-        <p style="margin-top:10px"><b>自機 大招 挿入句</b>　大招発動時に BGM を一瞬絞り、専用の短いフレーズが差し込まれます。符卡番号で転調・テンポ・装飾が変わるため、10 枚すべて異なる響きになります。</p>
+        <p style="margin-top:10px"><b>自機 大招 挿入句</b>　大招発動時に BGM を一瞬絞り、専用の短いフレーズが差し込まれます。符卡番号で転調・テンポ・装飾が変わるため、5 枚すべて異なる響きになります。</p>
         ${Object.entries(G.MUSIC.jingles).map(([k, j]) => {
         const c = G.getChar(k);
         return `<div class="music-row" data-jingle="${k}">
@@ -413,7 +420,7 @@
       }
       const jn = e.target.closest('[data-jingle]');
       if (jn) {
-        G.audio.init(); G.audio.playJingle(jn.dataset.jingle, M.randi(0, 9));
+        G.audio.init(); G.audio.playJingle(jn.dataset.jingle, M.randi(0, 4));
         U.toast('♪ 大招挿入句'); return;
       }
       if (e.target.closest('#dialog-box')) { G.game.advanceDialog(); return; }

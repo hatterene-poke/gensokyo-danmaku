@@ -365,18 +365,94 @@
   GM.firePlayer = function (dt) {
     const p = G.player, sp = G.getSpell(p.charId, p.slots[p.slot].idx);
     const sh = sp.shot;
-    p.fireT += 1; p.auxT += 1;
-    if (p.fireT >= sh.rate) { p.fireT -= sh.rate; GM.emitShot(sh, p, sp); }
+    const rate = GM.fireRateMul || 1;   // 「决斗・三倍连射」大招期间为 3
+    p.fireT += rate; p.auxT += rate;
+    /* 部分符卡按高低速改写齐射间隔：rateFast 2.5 倍 / rateFocus 1.5 倍 */
+    const mainRate = p.focus ? (sh.rateFocus || sh.rate) : (sh.rateFast || sh.rate);
+    if (p.fireT >= mainRate) { p.fireT -= mainRate; GM.emitShot(sh, p, sp); }
     if (sh.aux && p.auxT >= sh.aux.rate) { p.auxT -= sh.aux.rate; GM.emitShot(sh.aux, p, sp, true); }
     G.audio.sfx('shot');
   };
 
   /* =========================================================
-   * 自机弹发射：30 张符卡 = 30 个互不重复的 emitter。
-   * 灵梦=结界/御札/阴阳玉，魔理沙=魔炮/星屑/蓄力，咲夜=时间/银刀/刻度。
-   * 每个 emitter 收到 c = { mk, sh, p, sp, count, up, ff, offs, isAux }。
+   * 自机弹发射：15 张符卡逐张手写的 emitter。
+   * 每张的高速 / 低速形态在 emitter 内分叉；不依赖开火键的持续机构
+   * （法阵、黑白宝玉、结界冲击波、浮游炮、八方、十二刻度）交给
+   * 下面的 GM.tickSpell，每帧调用一次。
    * ========================================================= */
   const E = GM.shotEmitters = {};
+
+  /* 直接生成一发弹（供 emitter / tickSpell / tickBomb 共用）。
+     spawnShot 自带完整默认值，这里只补速度向量与非默认字段。 */
+  GM.raw = o => {
+    const a = o.angle === undefined ? -Math.PI / 2 : o.angle;
+    const sp = o.speed === undefined ? 1600 : o.speed;
+    return G.spawnShot(Object.assign({
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      angle: a, speed: sp, dmg: 12, r: 5, color: 'white',
+      sprite: 'small', type: 'raw', life: 1.3, tag: 'main'
+    }, o));
+  };
+  /* 固定炮台 / 环绕物：delay 极大 → 不位移、不参与命中判定，
+     但 drawShots 仍会把它（连同提示环）画出来。 */
+  GM.decor = (x, y, o) => GM.raw(Object.assign({
+    x, y, vx: 0, vy: 0, speed: 0, delay: 999, dmg: 0,
+    pierce: 0, life: 999, tag: 'decor', motion: 'stay',
+    r: 9, sprite: 'card', color: 'gold', zoneR: 26
+  }, o || {}));
+  GM.clearDecor = () => {
+    const arr = G.shots; let n = 0;
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i].tag === 'decor' || arr[i].tag === 'bombOrb') { G.poolS.push(arr[i]); continue; }
+      arr[n++] = arr[i];
+    }
+    arr.length = n;
+  };
+  GM.syncDecor = (positions, key, o) => {
+    const p = G.player;
+    if (GM._decorKey !== key) {
+      GM.clearDecor(); GM._decorKey = key;
+      for (const q of positions)
+        GM.decor(p.x + q[0], p.y + q[1], o || {});
+    }
+    let i = 0;
+    for (const s of G.shots) {
+      if (s.tag !== 'decor') continue;
+      const q = positions[i % positions.length];
+      s.x = p.x + q[0]; s.y = p.y + q[1];
+      s.px = s.x; s.py = s.y; i++;
+    }
+  };
+  /* 圆形冲击波：一整圈可见的波前向外扩散，敌人被波前扫到即结算一次伤害。
+     不再用 16 颗子弹拼成环 —— 那既会被当作子弹逐颗判定，视觉上也有缺口。 */
+  GM.shock = (x, y, dmg, color, radMax) => {
+    G.waves.push({ x, y, r: 10, radMax: radMax || 320, spd: 620,
+      dmg, color, hit: new Set(), width: 12, dead: false });
+  };
+  /* 波前推进 + 命中结算：每个目标每圈只吃一次伤害 */
+  GM.updateWaves = function (dt) {
+    const arr = G.waves; let n = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const w = arr[i];
+      const prev = w.r;
+      w.r += w.spd * dt;
+      for (const e of G.enemies) {
+        if (e.hp <= 0 || w.hit.has(e)) continue;
+        const d = Math.sqrt(M.dist2(w.x, w.y, e.x, e.y));
+        if (d >= prev - w.width - e.r && d <= w.r + w.width + e.r) {
+          w.hit.add(e); GM.damageEnemy(e, w.dmg);
+        }
+      }
+      if (G.boss && G.boss.spell && G.boss.spell.type === 'barrier' && !w.hit.has(G.boss)) {
+        const d = Math.sqrt(M.dist2(w.x, w.y, G.boss.x, G.boss.y));
+        if (d >= prev - w.width && d <= w.r + w.width) {
+          w.hit.add(G.boss); G.boss.hp -= w.dmg; G.boss.flash = .12;
+        }
+      }
+      if (w.r < w.radMax) arr[n++] = w;
+    }
+    arr.length = n;
+  };
 
   GM.emitShot = function (sh, p, sp, isAux) {
     const dmgMul = p.dmgScale * (p.focus ? 1.12 : 1);
@@ -388,270 +464,574 @@
     const mk = (x, y, ang, speed, o) => G.spawnShot(Object.assign({
       x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
       angle: ang, speed, dmg: (sh.dmg || 10) * dmgMul,
-      r: sh.r || (kind === 'laser' ? (sh.width || 8) : 5),
-      color: col, sprite: sh.sprite || 'small',
+      r: sh.r || 5, color: col, sprite: sh.sprite || 'small',
       pierce: sh.pierce || 0, homing: sh.homing || 0,
-      wave: sh.waveA ? 1 : 0, waveA: sh.waveA || 0, waveF: sh.waveF || 0, waveP: 0,
-      accel: sh.accel || 0, maxSpeed: sh.maxSpeed || 0, delay: sh.delay || 0,
-      splitN: sh.splitN || 0, splitT: sh.splitT || 0,
-      split: (sh.splitN && kind !== 'mine') ? 1 : 0,
-      curve: 0, ricochet: sh.ricochet || 0, satellite: sh.satellite || 0,
-      satT: sh.satT || .5, mine: sh.mine || 0, mineT: sh.mineT || .42,
-      mineN: sh.splitN || 8, rail: sh.rail || 0, spin: 0, orbitR: 44,
-      motion: sh.motion || 'straight',
-      cx: 0, cy: 0, a0: 0, rad: sh.rad0 || 0, radMax: sh.radMax || 0,
-      radSpd: sh.radSpd || 0, riseSpd: sh.riseSpd || 0,
-      rw1: sh.rw1 || 0, rw2: sh.rw2 || 0, rwDir: 1,
-      growMax: sh.growMax || 0, onHit: sh.onHit || '', zoneR: sh.zoneR || 0,
-      orbitY: sh.orbitY || 0, blinkAt: sh.blinkAt || 0,
-      blinkDist: sh.blinkDist || 0, blinked: 0, sealed: 0,
-      life: sh.motion === 'orbit' ? 2.2 : 2.4,
-      type: kind, tag: isAux ? 'aux' : 'main'
+      wave: 0, waveA: 0, waveF: 0, waveP: 0,
+      accel: sh.accel || 0, maxSpeed: sh.maxSpeed || 0, delay: 0,
+      curve: 0, rail: sh.rail || 0, spin: 0, spinT: 0, orbitR: 44,
+      motion: 'straight', cx: 0, cy: 0, a0: 0,
+      rad: 0, radMax: 0, radSpd: 0, riseSpd: 0,
+      rw1: 0, rw2: 0, rwDir: 1, growMax: 0, onHit: '', zoneR: 0,
+      blinkAt: 0, blinkDist: 0, blinked: 0, sealed: 0,
+      life: 1.3, type: kind, tag: isAux ? 'aux' : 'main'
     }, o || {}));
     const c = { mk, sh, p, sp, count, up, ff, isAux,
       offs: i => (i - (count - 1) / 2) };
     (E[kind] || E._default)(c);
   };
 
-  /* ---------------- 博麗 霊夢：结界 / 御札 / 阴阳玉 / 祓除 ---------------- */
+  /* ---------------- 灵梦 ---------------- */
+  /* 1 梦想封印：高速追踪灵符＋高伤害封魔针 / 低速全力集束封魔针 */
   E.ofuda = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x + c.offs(i) * 10 * c.ff, c.p.y - 14, c.up, c.sh.speed,
-        { wave: 1, waveA: c.sh.waveA || 9, waveF: c.sh.waveF || 5,
-          waveP: i / c.count * TAU, life: 2.2 });
-  };
-  E.kekkai = c => {
-    const W = c.sh.spanX || 320;
-    for (let i = 0; i < c.count; i++) {
-      const t = c.count === 1 ? .5 : i / (c.count - 1);
-      c.mk(c.p.x + (t - .5) * W * c.ff, c.p.y - 20,
-        c.up + (t - .5) * .12, c.sh.speed, { life: 2.8 });
-    }
-  };
-  E.yinyangArc = c => {
-    /* 阴阳玉从自机上方成对射出，沿左右对称的弧线飞向前场 */
-    for (let i = 0; i < c.count; i++) {
-      const q = c.mk(c.p.x + (i ? 18 : -18), c.p.y - 16,
-        c.up + (i ? .2 : -.2), c.sh.speed, { r: 9, life: 2.0 });
-      q.curve = (i ? 1 : -1) * (c.sh.curveAlt || 1.15);
-      q.spin = q.curve * 1.2;
-    }
-  };
-  E.purifyRing = c => {
-    /* 祓除轮在自机前方 210px 展开并继续向上推进，不再贴身 */
-    const cx = c.p.x, cy = c.p.y - 210;
-    for (let i = 0; i < c.count; i++)
-      c.mk(cx, cy, i / c.count * TAU, 0,
-        { motion: 'expand', cx, cy, a0: i / c.count * TAU,
-          rad: c.sh.rad0 || 12, radMax: c.sh.radMax || 280,
-          radSpd: c.sh.radSpd || 300, riseSpd: c.sh.riseSpd || 170,
-          life: 1.2, pierce: 1 });
-  };
-  E.seal = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x + c.offs(i) * 18, c.p.y - 16, c.up + c.offs(i) * .1,
-        c.sh.speed, { r: 9, onHit: 'seal', life: 2.4 });
-  };
-  E.shide = c => {
-    for (let i = 0; i < c.count; i++) {
-      const t = c.count === 1 ? .5 : i / (c.count - 1);
-      c.mk(c.p.x, c.p.y - 12, c.up + (t - .5) * (c.sh.spread || .66) * c.ff,
-        c.sh.speed, { splitN: c.sh.splitN || 2, splitT: c.sh.splitT || .3,
-          split: 1, life: 2.2 });
-    }
-  };
-  E.torii = c => {
-    for (let i = 0; i < 2; i++)
-      c.mk(c.p.x + (i ? 34 : -34) * c.ff, c.p.y - 18, c.up, c.sh.speed,
-        { rail: 1, r: (c.sh.width || 10) * .6, pierce: c.sh.pierce || 8, life: 1.25 });
-    c.mk(c.p.x + Math.sin(c.p.frame * .045) * 120, c.p.y - 18, c.up,
-      c.sh.speed * .8, { rail: 1, r: 5, pierce: 6, life: 1.25 });
-  };
-  E.kagura = c => {
-    if (c.p.frame % (c.sh.beat || 48) >= (c.sh.rate || 8)) return;
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x, c.p.y - 8, i / c.count * TAU + c.p.frame * .01,
-        c.sh.speed, { life: 1.7 });
-  };
-  E.homingJade = c => {
-    const tgt = GM.nearestTarget(c.p.x, c.p.y);
-    const base = tgt ? Math.atan2(tgt.y - c.p.y, tgt.x - c.p.x) : c.up;
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x, c.p.y - 14, base + c.offs(i) * .12, c.sh.speed,
-        { motion: 'rewind', homing: c.sh.homing || 6,
-          rw1: c.sh.rw1 || .55, rw2: c.sh.rw2 || 1.0, life: 2.0 });
-  };
-  E.musou = c => {
-    c.mk(c.p.x, c.p.y - 24, c.up, c.sh.speed,
-      { motion: 'grow', growMax: c.sh.growMax || 26, r: c.sh.r || 11,
-        pierce: c.sh.pierce || 9, life: 2.8 });
-  };
-
-  /* ---------------- 霧雨 魔理沙：魔炮 / 星屑 / 非对称火力 ---------------- */
-  E.stardust = c => {
-    for (let i = 0; i < c.count; i++) {
-      const o = c.offs(i);
-      const s = c.mk(c.p.x + o * 16 * c.ff, c.p.y - 14, c.up, c.sh.speed,
-        { life: 1.6 });
-      s.curve = -o * .55;                 // 两侧向中轴弯，收束成一道星针
-    }
-  };
-  E.masterSpark = c => {
-    c.mk(c.p.x, c.p.y - 26, c.up, c.sh.speed,
-      { r: c.sh.r || 26, pierce: 99, rail: 1, life: .8 });
-  };
-  E.crossLaser = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x + c.offs(i) * 10, c.p.y - 14,
-        c.up + (i % 2 ? 1 : -1) * (.3 + Math.floor(i / 2) * .2),
-        c.sh.speed, { r: 6, pierce: 2, life: 1.9 });
-  };
-  E.spore = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x, c.p.y - 12, c.up + c.offs(i) * .17, c.sh.speed,
-        { splitN: c.sh.splitN || 5, splitT: c.sh.splitT || .5, split: 1, life: 2.4 });
-  };
-  E.broom = c => {
-    for (let i = 0; i < c.count; i++) {
-      const t = c.count === 1 ? .5 : i / (c.count - 1);
-      const s = c.mk(c.p.x, c.p.y - 12, c.up + (t - .5) * (c.sh.spread || 1) * c.ff,
-        c.sh.speed, { life: 2.0 });
-      s.curve = (t - .5) * (c.sh.curveAlt || .7) * 2;
-    }
-  };
-  E.satelliteFixed = c => {
-    /* 炮台悬浮在自机上方，不绕身贴脸；周期性向目标点射 */
-    const oy = c.sh.orbitY || -105;
-    for (let i = 0; i < c.count; i++) {
-      const q = c.mk(c.p.x, c.p.y, c.up, c.sh.speed,
-        { motion: 'orbit', sprite: 'star', life: 2.2, orbitR: 68, orbitY: oy });
-      q.orbit = 1; q.orbitA = c.p.frame * .055 + i / c.count * TAU;
-      q.orbitSpd = (c.sh.speed || 205) / 60; q.orbitR = 68; q.orbitY = oy;
-      q.satellite = 1; q.satT = c.sh.satT || .5; q.satClock = 0;
-    }
-  };
-  E.mine = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x + c.offs(i) * 24, c.p.y - 18, c.up + c.offs(i) * .24,
-        (c.sh.speed || 300) * .42,
-        { motion: 'mine', mine: 1, mineT: c.sh.mineT || .42,
-          mineN: c.sh.splitN || 8, r: 8, life: 1.5 });
-  };
-  E.meteor = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x + c.offs(i) * 16, c.p.y - 14, c.up, c.sh.speed,
-        { accel: c.sh.accel || 900, maxSpeed: c.sh.maxSpeed || 1400,
-          pierce: c.sh.pierce || 5, life: 2.0 });
-  };
-  E.spiral = c => {
-    for (let i = 0; i < c.count; i++) {
-      const s = c.mk(c.p.x + c.offs(i) * 10, c.p.y - 12, c.up, c.sh.speed,
-        { sprite: 'crystal', life: 2.0, homing: c.sh.homing || 1.2 });
-      s.curve = (i % 2 ? 1 : -1) * (c.sh.curveAlt || 1.5);
-      s.spin = s.curve * 1.6;
-    }
-  };
-  E.shower = c => {
-    for (let i = 0; i < c.count; i++) {
-      const sx = c.p.x + M.rand(-160, 160), sy = c.p.y - 70 - M.rand(0, 150);
-      const tgt = GM.nearestTarget(sx, sy);
-      const a = tgt ? Math.atan2(tgt.y - sy, tgt.x - sx) + M.rand(-.07, .07) : c.up;
-      c.mk(sx, sy, a, c.sh.speed, { sprite: 'star', life: 1.5 });
-    }
-  };
-
-  /* ---------------- 十六夜 咲夜：银刀 / 操纵时间 / 精确刻度 ---------------- */
-  E.knifeVolley = c => {
-    const W = c.sh.spanX || 300;
-    for (let i = 0; i < c.count; i++) {
-      const t = c.count === 1 ? .5 : i / (c.count - 1);
-      c.mk(c.p.x + (t - .5) * W, c.p.y - 14, c.up + (t - .5) * .16,
-        c.sh.speed, { spin: 7, life: 1.9 });
-    }
-  };
-  E.timeFreeze = c => {
-    for (let i = 0; i < c.count; i++) {
-      const t = c.count === 1 ? .5 : i / (c.count - 1);
-      c.mk(c.p.x + c.offs(i) * 14 * c.ff, c.p.y - 14,
-        c.up + (t - .5) * .5, c.sh.speed,
-        { delay: c.sh.delay || .35, life: 2.0 });
-    }
-  };
-  E.clockDial = c => {
-    const D = c.sh.dial || 12;
-    const k = Math.floor(c.p.frame / 3) % D;
-    c.mk(c.p.x, c.p.y - 12, c.up + k / D * TAU, c.sh.speed,
-      { life: 1.8, spin: 4 });
-  };
-  E.afterimage = c => {
-    for (let g = -1; g <= 1; g++)
-      for (let i = 0; i < c.count; i++)
-        c.mk(c.p.x + g * 58, c.p.y - 14,
-          c.up + c.offs(i) * .12 + g * .06, c.sh.speed,
-          { ghost: g, spin: g * 3, life: 1.8 });
-  };
-  E.rewind = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x, c.p.y - 14, c.up + c.offs(i) * .3, c.sh.speed,
-        { motion: 'rewind', rw1: c.sh.rw1 || .42, rw2: c.sh.rw2 || .78,
-          life: 2.0 });
-  };
-  E.chronoLance = c => {
-    /* 超高速银枪纵贯全场，飞行中途向前跃迁一段并留下时间残影 */
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x + c.offs(i) * 22, c.p.y - 18, c.up, c.sh.speed,
-        { r: 7, pierce: 99, rail: 1, life: 1.15,
-          blinkAt: c.sh.blinkAt || .16, blinkDist: c.sh.blinkDist || 170 });
-  };
-  E.ricochet = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x, c.p.y - 14, c.up + c.offs(i) * .28 + (i % 2 ? .1 : -.1),
-        c.sh.speed, { ricochet: c.sh.ricochet || 3, life: 2.2 });
-  };
-  E.timeField = c => {
-    /* 时域在自机前方 260px 展开，十二把银刀从该点向四周放射 */
-    const fx = c.p.x, fy = c.p.y - 260, n = c.count;
-    for (let i = 0; i < n; i++)
-      c.mk(fx, fy, i / n * TAU + c.p.frame * .004, c.sh.speed,
-        { r: 6, spin: 4, life: 1.7 });
-  };
-  E.converge = c => {
-    const cy = c.p.y - 230;
-    for (let i = 0; i < c.count; i++) {
-      const sx = c.p.x + c.offs(i) * 26 * c.ff;
-      c.mk(sx, c.p.y - 12, Math.atan2(cy - (c.p.y - 12), c.p.x - sx),
-        c.sh.speed, { sprite: 'small' });
-    }
-  };
-  E.twelveStrike = c => {
-    for (let i = 0; i < c.count; i++)
-      c.mk(c.p.x, c.p.y - 8, i / c.count * TAU + c.p.frame * .002,
-        c.sh.speed, { pierce: 1, life: 1.6, spin: 5 });
-  };
-
-  /* 副武器（aux）：保留旧式的简单机构，不参与 30 种主机构计数 */
-  E._default = c => {
-    const { mk, sh, p, count, up, ff, isAux, offs } = c;
-    if (sh.type === 'orbit') {
-      for (let i = 0; i < count; i++) {
-        const q = mk(p.x, p.y, up, sh.speed || 165, { sprite: 'big', life: 1.6 });
-        q.orbit = 1; q.orbitA = p.frame * .06 + i / count * TAU;
-        q.orbitSpd = (sh.speed || 165) / 60; q.orbitR = 44;
+    const p = c.p, sh = c.sh;
+    if (p.focus) {
+      for (let i = 0; i < 5; i++) {
+        const t = i / 4 - .5;
+        const s = c.mk(p.x + t * 26, p.y - 14, c.up - t * .16, sh.speed,
+          { dmg: sh.dmg * 1.5, r: 4, sprite: 'needle', color: 'cream',
+            pierce: 3, rail: 1, life: 1.2 });
+        s.curve = -t * .3;
       }
-    } else if (sh.type === 'spread') {
-      for (let i = 0; i < count; i++) {
-        const t = count === 1 ? .5 : i / (count - 1);
-        mk(p.x, p.y - 12, up + (t - .5) * (sh.spread || .7) * ff,
-          sh.speed || 560, { sprite: sh.sprite || 'small' });
-      }
-    } else if (sh.type === 'laser') {
-      for (let i = 0; i < count; i++)
-        mk(p.x + offs(i) * (isAux ? 12 : 22) * ff, p.y - 16, up, sh.speed || 950,
-          { sprite: 'needle', r: (sh.width || 9) * .7, pierce: sh.pierce || 3 });
     } else {
-      for (let i = 0; i < count; i++)
-        mk(p.x + offs(i) * (isAux ? 7 : 10) * ff, p.y - 14, up,
-          sh.speed || 600, { sprite: sh.sprite || 'small' });
+      const tgt = GM.nearestTarget(p.x, p.y);
+      const base = tgt ? Math.atan2(tgt.y - p.y, tgt.x - p.x) : c.up;
+      for (let i = 0; i < 2; i++)
+        c.mk(p.x, p.y - 12, base + (i ? .10 : -.10), sh.speed,
+          { homing: 9, sprite: 'ofuda', color: 'sakura',
+            dmg: sh.dmg, life: 1.2 });
+      for (let i = 0; i < 3; i++)
+        c.mk(p.x + (i - 1) * 9 * c.ff, p.y - 14, c.up, sh.speed,
+          { dmg: sh.dmg * 1.8, r: 3, sprite: 'needle', color: 'gold',
+            pierce: 3, rail: 1, life: 1.2 });
+    }
+  };
+  /* 2 混乱符咒：法阵本身与齐射由 tickSpell 承担 */
+  E.kekkai = c => {};
+  /* 3 阴阳宝玉：黑白球由 tickSpell 维持并冲撞 */
+  E.purifyRing = c => {};
+  /* 4 弹幕结界：持续扩散的冲击波由 tickSpell 承担 */
+  E.torii = c => {};
+  /* 5 钱符：高速成长赛钱 / 低速扇形赛钱 */
+  E.homingJade = c => {
+    const p = c.p, sh = c.sh;
+    if (p.focus) {
+      for (let i = 0; i < 7; i++) {
+        const t = i / 6 - .5;
+        c.mk(p.x, p.y - 12, c.up + t * .9, sh.speed,
+          { sprite: 'star', color: 'amber', r: 6, dmg: sh.dmg, life: 1.2 });
+      }
+    } else {
+      c.mk(p.x, p.y - 20, c.up, sh.speed,
+        { motion: 'grow', growMax: 34, r: 8, sprite: 'star', color: 'gold',
+          dmg: sh.dmg, pierce: 9, life: 1.3 });
+    }
+  };
+
+  /* ---------------- 魔理沙 ---------------- */
+  /* 1 极限火花：高速白色带彩线粗激光 / 低速更细更痛 */
+  E.stardust = c => {
+    const p = c.p, sh = c.sh;
+    if (p.focus) {
+      c.mk(p.x, p.y - 26, c.up, sh.speed,
+        { r: 4, dmg: sh.dmg * 1.7, sprite: 'needle', color: 'white',
+          rail: 1, pierce: 99, life: .9 });
+    } else {
+      c.mk(p.x, p.y - 26, c.up, sh.speed,
+        { r: 13, dmg: sh.dmg, sprite: 'needle', color: 'white',
+          rail: 1, pierce: 99, life: .9 });
+      for (let k = 0; k < 3; k++)
+        G.spawnParticle({ x: p.x + M.rand(-12, 12), y: p.y - 20 - k * 40,
+          vx: M.rand(-30, 30), vy: -220,
+          color: ['red', 'blue', 'gold'][k], life: .35, size: 3, type: 'spark' });
+    }
+  };
+  /* 2 非定向激光：高速四线随机扫射 / 低速向前集中 */
+  E.masterSpark = c => {
+    const p = c.p, sh = c.sh;
+    if (p.focus) {
+      for (let i = 0; i < 4; i++)
+        c.mk(p.x + (i - 1.5) * 10, p.y - 16, c.up, sh.speed,
+          { r: 4, sprite: 'needle', color: 'cream', rail: 1,
+            pierce: 99, dmg: sh.dmg, life: .9 });
+    } else {
+      for (let i = 0; i < 4; i++)
+        c.mk(p.x, p.y - 16, c.up + M.rand(-1.2, 1.2), sh.speed,
+          { r: 3, sprite: 'needle', color: 'gold', rail: 1,
+            pierce: 99, dmg: sh.dmg, life: .8 });
+    }
+  };
+  /* 3 好多流星：高速横向随机 / 低速中心固定，命中迸星 */
+  E.shower = c => {
+    const p = c.p, sh = c.sh;
+    const x = p.focus ? p.x : p.x + M.rand(-150, 150);
+    c.mk(x, p.y - 18, c.up, sh.speed,
+      { sprite: 'star', color: 'cyan', r: 7, accel: 700, maxSpeed: 2100,
+        pierce: 3, onHit: 'star', tag: 'meteor', dmg: sh.dmg, life: 1.0 });
+  };
+  /* 4 坠落的繁星：两侧锁定激光 */
+  E.spiral = c => {
+    const p = c.p, sh = c.sh;
+    const tgt = GM.nearestTarget(p.x, p.y);
+    for (const side of [-1, 1]) {
+      const x = p.x + side * 34 * c.ff;
+      const a = tgt ? Math.atan2(tgt.y - (p.y - 10), tgt.x - x) : c.up;
+      c.mk(x, p.y - 10, a, sh.speed,
+        { r: 5, sprite: 'needle', color: side < 0 ? 'blue' : 'gold',
+          rail: 1, pierce: 99, dmg: sh.dmg, life: 1.0 });
+    }
+  };
+  /* 5 浮游炮：按开火键向前发射星星子弹（炮台本身在 tickSpell） */
+  E.meteor = c => {
+    for (let i = 0; i < 3; i++)
+      c.mk(c.p.x + (i - 1) * 12 * c.ff, c.p.y - 14, c.up, c.sh.speed,
+        { sprite: 'star', color: 'gold', r: 5, dmg: c.sh.dmg, life: 1.2 });
+  };
+
+  /* ---------------- 咲夜：五张飞刀贴图与轨迹各不相同 ---------------- */
+  /* 1 围绕的飞刀：银苦无，目标身旁浮现、0.3 秒后贯穿 */
+  E.knifeVolley = c => {
+    const tgt = GM.nearestTarget(c.p.x, c.p.y);
+    const tx = tgt ? tgt.x : c.p.x, ty = tgt ? tgt.y : 150;
+    for (let i = 0; i < 3; i++) {
+      const a0 = M.rand(0, TAU), R = M.rand(46, 92);
+      const x = tx + Math.cos(a0) * R, y = ty + Math.sin(a0) * R;
+      c.mk(x, y, Math.atan2(ty - y, tx - x), c.sh.speed,
+        { delay: .3, sprite: 'kunai', color: 'silver', r: 5,
+          pierce: 99, rail: 1, dmg: c.sh.dmg, life: 1.4, tag: 'knife' });
+    }
+  };
+  /* 2 刀扇飞舞：蓝针自转，低速收拢 */
+  E.chronoLance = c => {
+    const n = 11, spread = c.p.focus ? .55 : 1.15;
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1) - .5;
+      c.mk(c.p.x, c.p.y - 12, c.up + t * spread, c.sh.speed,
+        { sprite: 'needle', color: 'blue', r: 4, dmg: c.sh.dmg,
+          pierce: 2, rail: 1, life: 1.2, spin: 6 });
+    }
+  };
+  /* 3 宴请八方：由 tickSpell 旋转发射、靛晶刃三跳弹 */
+  E.timeField = c => {};
+  /* 4 逆转的时钟：由 tickSpell 十二刻度轮流发射追踪镜刃 */
+  E.clockDial = c => {};
+  /* 5 堂堂正正的对决：白星三刀，低速并排向前 */
+  E.rewind = c => {
+    const p = c.p, sh = c.sh;
+    if (p.focus) {
+      for (let i = 0; i < 3; i++)
+        c.mk(p.x + (i - 1) * 14, p.y - 16, c.up, sh.speed,
+          { sprite: 'star', color: 'white', r: 6, dmg: sh.dmg * 1.3,
+            pierce: 9, rail: 1, life: 1.1 });
+    } else {
+      c.mk(p.x, p.y - 18, c.up, sh.speed,
+        { sprite: 'star', color: 'white', r: 7, dmg: sh.dmg * 1.6,
+          pierce: 99, rail: 1, life: 1.1 });
+      for (const side of [-1, 1]) {
+        const a = c.up + side * (.25 + .2 * Math.sin(p.frame * .09));
+        const s = c.mk(p.x + side * 22, p.y - 14, a, sh.speed,
+          { sprite: 'star', color: 'cream', r: 5, dmg: sh.dmg * 1.2,
+            pierce: 9, rail: 1, life: 1.1 });
+        s.curve = -side * .5;
+      }
+    }
+  };
+
+  E._default = c => {
+    const { mk, sh, p, count, up, ff } = c;
+    for (let i = 0; i < count; i++)
+      mk(p.x + (i - (count - 1) / 2) * 10 * ff, p.y - 14, up,
+        sh.speed || 1600, { sprite: sh.sprite || 'small' });
+  };
+
+  /* =========================================================
+   * 持续机构：每帧一次，不依赖开火键的符卡在此维持与齐射
+   * ========================================================= */
+  GM._decorOf = null; GM._decorKey = null;
+  GM.tickSpell = function (dt) {
+    const p = G.player;
+    if (!p || !p.alive || G.state !== 'playing') return;
+    const sp = G.getSpell(p.charId, p.slots[p.slot].idx);
+    const k = sp.shot.type;
+    if (GM._decorOf !== k) { GM.clearDecor(); GM._decorOf = k; GM._decorKey = null; }
+    const F = p.frame;
+    const dmg = sp.shot.dmg;
+    switch (k) {
+      case 'kekkai': {
+        /* 五个法阵水平对称分散；低速收束到身后合为一大阵 */
+        const mode = p.focus ? 1 : 0;
+        const xs = mode ? [0] : [-160, -80, 0, 80, 160];
+        const dy = mode ? 46 : -18;
+        const pos = xs.map(x => [x, dy]);
+        GM.syncDecor(pos, 'kekkai' + mode, {
+          sprite: 'card', color: mode ? 'gold' : 'crimson',
+          r: mode ? 16 : 9, zoneR: mode ? 46 : 22, spin: 4
+        });
+        if (mode) {
+          /* 低速：每秒 60 张，随机 ±15 度偏转 */
+          GM.raw({ x: p.x + M.rand(-14, 14), y: p.y + dy,
+            angle: -Math.PI / 2 + M.rand(-.26, .26), speed: 1500,
+            sprite: 'ofuda', color: 'crimson', dmg, r: 6, life: 1.2, tag: 'talisman' });
+        } else if (F % 5 === 0) {
+          /* 高速：五个法阵「同时」各射一张 = 每阵每秒 12 张（合计 60 张） */
+          for (const dx of xs)
+            GM.raw({ x: p.x + dx, y: p.y + dy,
+              angle: -Math.PI / 2 + M.rand(-.26, .26), speed: 1500,
+              sprite: 'ofuda', color: 'crimson', dmg: dmg * 1.2, r: 6,
+              life: 1.2, tag: 'talisman' });
+        }
+        break;
+      }
+      case 'purifyRing': {
+        /* 黑白宝玉：位置对称、超高速旋转；黑球泛白光、白球泛黑光 */
+        const t = F / 60;
+        const fire = G.fireDown();
+        const tgt = GM.nearestTarget(p.x, p.y);
+        let R = 58;
+        if (fire && !p.focus && tgt) R = M.clamp(M.dist2(p.x, p.y, tgt.x, tgt.y) ** .5 * .45, 32, 130);
+        const pos = [[Math.cos(t * 11) * R, Math.sin(t * 11) * R],
+                     [-Math.cos(t * 11) * R, -Math.sin(t * 11) * R]];
+        GM.syncDecor(pos, 'orb', {
+          sprite: 'big', color: 'white', r: 12, zoneR: 30, spin: 9
+        });
+        let i = 0;
+        for (const s of G.shots) {
+          if (s.tag !== 'decor') continue;
+          const q = pos[i % 2];
+          s.x = p.x + q[0]; s.y = p.y + q[1];
+          /* 低速且按住开火：锁定敌人来回冲撞 */
+          if (fire && p.focus && tgt) {
+            const a = Math.atan2(tgt.y - s.y, tgt.x - s.x);
+            const kick = Math.sin(F * .35 + i * Math.PI) * 3.4;
+            s.x += Math.cos(a) * kick; s.y += Math.sin(a) * kick;
+          }
+          s.px = s.x; s.py = s.y;
+          G.spawnParticle({ x: s.x, y: s.y, vx: M.rand(-20, 20), vy: M.rand(-20, 20),
+            color: i % 2 ? 'ink' : 'white', life: .22, size: 4, type: 'spark' });
+          if (F % 4 === 0)
+            GM.raw({ x: s.x, y: s.y, angle: -Math.PI / 2, speed: 1700,
+              sprite: 'orb', color: i % 2 ? 'gold' : 'white', dmg, r: 6,
+              pierce: 2, life: 1.0, tag: 'orbShot' });
+          i++;
+        }
+        break;
+      }
+      case 'torii': {
+        /* 结界：整圈圆形波向外扩散，每秒 10 波，高低速相同 */
+        if (F % 6 === 0) GM.shock(p.x, p.y - 10, dmg * .8, 'cyan', 340);
+        break;
+      }
+      case 'meteor': {
+        /* 三台浮游炮绕身旋转，自动索敌发射能量弹 */
+        const fast = GM.bombFx && GM.bombFx.script === 'satelliteBoost';
+        const w = fast ? 13 : 5;
+        const pos = [];
+        for (let i = 0; i < 3; i++) {
+          const a = F / 60 * w + i / 3 * TAU;
+          pos.push([Math.cos(a) * 62, Math.sin(a) * 62 - 12]);
+        }
+        GM.syncDecor(pos, 'satellite', {
+          sprite: 'star', color: 'blue', r: 8, zoneR: 22, spin: 7
+        });
+        if (F % (fast ? 2 : 12) === 0) {
+          for (const q of pos) {
+            const x = p.x + q[0], y = p.y + q[1];
+            const tgt = GM.nearestTarget(x, y);
+            const a = tgt ? Math.atan2(tgt.y - y, tgt.x - x) : -Math.PI / 2;
+            GM.raw({ x, y, angle: a, speed: 1650, sprite: 'small',
+              color: 'cyan', dmg: dmg * .8, r: 4, life: 1.1, tag: 'sat' });
+          }
+        }
+        break;
+      }
+      case 'timeField': {
+        /* 八方快速旋转，晶体刃在屏幕边缘弹射 3 次 */
+        const rot = F * .055;
+        if (F % 7 === 0) {
+          for (let i = 0; i < 8; i++) {
+            const a = rot + i / 8 * TAU;
+            GM.raw({ x: p.x, y: p.y - 10, angle: a, speed: 1550,
+              sprite: 'crystal', color: 'indigo', dmg, r: 6,
+              ricochet: 3, spin: 5, life: 2.2, tag: 'knife' });
+          }
+        }
+        break;
+      }
+      case 'clockDial': {
+        /* 逆行时钟：12 刻度环绕自机贴图，半径贴合判定点外缘；
+           表盘与指针由 render.drawClockFace 绘制，指针正对当前发射刻度。
+           发射速率加倍：每 2.5 帧一枚（原每 5 帧）。 */
+        const R = 34, cy = p.y - 8;
+        /* 每 2.5 帧推进一个刻度（每秒 24 枚 = 原来 12 枚的 2 倍）。
+           用刻度索引跳变触发，指针角度与这一发的位置严格一致。 */
+        const step24 = Math.floor(F * 2 / 5);
+        const idx = step24 % 12;
+        const k12 = (12 - idx) % 12;             // 逆时针
+        const a = -Math.PI / 2 - k12 / 12 * TAU; // 指针角 = 发射位置
+        GM.clockFace = { x: p.x, y: cy, r: R, ang: a, active: true };
+        if (GM._clockStep !== step24) {
+          GM._clockStep = step24;
+          const x = p.x + Math.cos(a) * R, y = cy + Math.sin(a) * R;
+          GM.raw({ x, y, angle: a, speed: 1550,
+            sprite: 'mirror', color: 'violet', dmg, r: 6,
+            homing: 8, pierce: 1, life: 1.3, tag: 'knife' });
+        }
+        break;
+      }
+    }
+  };
+
+  /* =========================================================
+   * 大招阶段机：0～2 秒无敌蓄力 → 全屏伤害＋清弹 → 各自专属效果
+   * ========================================================= */
+  GM.freeze = false;
+  GM.fireRateMul = 1;
+  GM.silence = 0;
+  GM.tickBomb = function (dt) {
+    const f = GM.bombFx;
+    if (!f) return;
+    const p = G.player;
+    f.t += dt;
+    const u = f.t - 2;
+    if (u < 0) {
+      /* 蓄力的 2 秒：无敌期间给一圈缓慢收拢的光点 */
+      if (p && p.frame % 3 === 0)
+        G.spawnParticle({ x: p.x + Math.cos(f.t * 5) * 78,
+          y: p.y + Math.sin(f.t * 5) * 78, vx: -Math.cos(f.t * 5) * 40,
+          vy: -Math.sin(f.t * 5) * 40, color: f.color, life: .5,
+          size: 3.5, type: 'spark' });
+      return;
+    }
+    if (!f.fired) {
+      f.fired = true;
+      G.clearBullets(true); G.lasers.length = 0;
+      for (const e of G.enemies) GM.damageEnemy(e, f.power * .8);
+      if (G.boss && G.boss.spell && G.boss.spell.type === 'barrier') {
+        G.boss.hp -= f.power * .5; G.boss.flash = .3;
+      }
+      G.flash(.9, '#fff2d0'); G.shake(20);
+      G.floatText(G.PF.w / 2, G.PF.h * .44, f.name, '#fff0d0', 22, 1.8);
+      f.home = p ? { x: p.x, y: p.y } : null;
+      f.step = 0;
+    }
+    f.step = (f.step || 0) + 1;
+    const S = f.step;
+    const col = f.color;
+    const px = p ? p.x : G.PF.w / 2, py = p ? p.y - 20 : 500;
+    const tgt = GM.nearestTarget(px, py);
+    const tx = tgt ? tgt.x : G.PF.w / 2, ty = tgt ? tgt.y : 160;
+
+    switch (f.script) {
+      case 'dreamSeal': {
+        /* 十颗彩色光球绕身 2 秒，之后一齐射出 */
+        const cols = ['red', 'gold', 'cyan', 'violet', 'green', 'blue', 'pink', 'amber', 'white', 'sakura'];
+        if (u < 2) {
+          for (let i = 0; i < 10; i++) {
+            const a = f.t * 4 + i / 10 * TAU;
+            G.spawnParticle({ x: px + Math.cos(a) * 70, y: py + Math.sin(a) * 70,
+              vx: 0, vy: 0, color: cols[i], life: .3, size: 9, type: 'spark' });
+          }
+        } else if (!f.fired2) {
+          f.fired2 = true;
+          for (let i = 0; i < 10; i++) {
+            const a = -Math.PI / 2 + (i - 4.5) * .16;
+            GM.raw({ x: px, y: py, angle: a, speed: 1700, sprite: 'big',
+              color: cols[i], dmg: 120, r: 12, homing: 7, pierce: 9,
+              rail: 1, life: 1.4, tag: 'bombShot' });
+          }
+        }
+        break;
+      }
+      case 'chaos': {
+        /* 2 秒内每秒 300 张符纸（每帧 5 张）自法阵额外射出 */
+        if (u < 2) for (let i = 0; i < 5; i++)
+          GM.raw({ x: px + M.rand(-170, 170), y: py + 20,
+            angle: -Math.PI / 2 + M.rand(-.26, .26), speed: 1500,
+            sprite: 'ofuda', color: 'crimson', dmg: 14, r: 5,
+            life: 1.0, tag: 'bombShot' });
+        break;
+      }
+      case 'yinyang': {
+        /* 太极图案 + 4 秒沉默所有敌人 */
+        GM.silence = Math.max(GM.silence, 4 - u);
+        for (let i = 0; i < 2; i++) {
+          const a = f.t * 2.4 + i * Math.PI;
+          G.spawnParticle({ x: G.PF.w / 2 + Math.cos(a) * 76,
+            y: G.PF.h * .46 + Math.sin(a) * 76,
+            vx: 0, vy: 0, color: i ? 'ink' : 'white',
+            life: .35, size: 11, type: 'spark' });
+        }
+        if (S % 6 === 0) GM.shock(G.PF.w / 2, G.PF.h * .46, 40, 'white', 260);
+        break;
+      }
+      case 'barrier': {
+        /* 8 秒护盾：屏蔽靠近自机的敌弹 */
+        if (p) p.shield = Math.max(p.shield || 0, f.dur - 2 - u);
+        if (S % 8 === 0)
+          for (let i = 0; i < 12; i++) {
+            const a = i / 12 * TAU;
+            G.spawnParticle({ x: px + Math.cos(a) * 52, y: py + Math.sin(a) * 52,
+              vx: 0, vy: 0, color: 'cyan', life: .4, size: 4, type: 'spark' });
+          }
+        break;
+      }
+      case 'coin': {
+        if (!f.fired2) {
+          f.fired2 = true;
+          G.addScore(5000);
+          if (G.boss && G.boss.spell && G.boss.spell.type === 'barrier') G.boss.hp -= 2600;
+          G.floatText(G.PF.w / 2, G.PF.h * .4, '+5000 赛钱', '#ffe07a', 22, 1.8);
+          for (let i = 0; i < 40; i++)
+            G.spawnParticle({ x: tx, y: ty, vx: M.rand(-240, 240), vy: M.rand(-240, 240),
+              color: 'gold', life: .9, size: 5, type: 'shard' });
+        }
+        break;
+      }
+      case 'masterSparkB': {
+        /* 3 秒发射占据半个屏幕的超大号激光 */
+        if (u < 3 && S % 6 === 0)
+          GM.raw({ x: px, y: py, angle: -Math.PI / 2, speed: 1700,
+            sprite: 'needle', color: 'white', dmg: 90, r: 78,
+            rail: 1, pierce: 99, life: .8, tag: 'bombShot' });
+        break;
+      }
+      case 'laserMad': {
+        /* 12 条激光极速随机乱扫 3 秒 */
+        if (u < 3 && S % 3 === 0)
+          for (let i = 0; i < 12; i++)
+            GM.raw({ x: px, y: py, angle: M.rand(0, TAU), speed: 1750,
+              sprite: 'needle', color: 'cream', dmg: 26, r: 4,
+              rail: 1, pierce: 99, life: .6, tag: 'bombShot' });
+        break;
+      }
+      case 'bigMeteor': {
+        /* 一枚大流星飞向屏幕中心后爆炸 */
+        if (u < .35) {
+          if (S % 2 === 0)
+            G.spawnParticle({ x: px, y: py - u * 900, vx: 0, vy: -60,
+              color: 'cyan', life: .3, size: 20, type: 'spark' });
+        } else if (!f.fired2) {
+          f.fired2 = true;
+          const cx = G.PF.w / 2, cy = G.PF.h * .44;
+          G.burst(cx, cy, 'cyan', 60, 420, { type: 'shard' });
+          G.flash(.8, '#bff4ff'); G.shake(22);
+          GM.shock(cx, cy, 160, 'cyan', 420);
+          for (const e of G.enemies) GM.damageEnemy(e, 300);
+          if (G.boss && G.boss.spell && G.boss.spell.type === 'barrier') G.boss.hp -= 1400;
+        }
+        break;
+      }
+      case 'hexLaser': {
+        /* 6 秒内由六边形六个角各发射一道激光 */
+        if (u < 6 && S % 12 === 0)
+          for (let i = 0; i < 6; i++) {
+            const a = i / 6 * TAU + f.t * .5;
+            const x = px + Math.cos(a) * 92, y = py + Math.sin(a) * 92;
+            const ang = Math.atan2(ty - y, tx - x);
+            GM.raw({ x, y, angle: ang, speed: 1700, sprite: 'needle',
+              color: 'gold', dmg: 34, r: 6, rail: 1, pierce: 99,
+              life: .9, tag: 'bombShot' });
+          }
+        break;
+      }
+      case 'satelliteBoost': {
+        /* 6 秒内浮游炮加速旋转并超高速开火 */
+        if (u < 6 && S % 2 === 0)
+          for (let i = 0; i < 3; i++) {
+            const a = f.t * 13 + i / 3 * TAU;
+            const x = px + Math.cos(a) * 66, y = py + Math.sin(a) * 66;
+            const ang = Math.atan2(ty - y, tx - x);
+            GM.raw({ x, y, angle: ang, speed: 1750, sprite: 'star',
+              color: 'blue', dmg: 24, r: 5, life: 1.0, tag: 'bombShot' });
+          }
+        break;
+      }
+      case 'timeStopKnives': {
+        /* 时停 2 秒（扭曲＋负片），敌人身旁浮现大量飞刀，解除时一齐射出 */
+        if (u < 2) {
+          GM.freeze = true; G.fx.invert = 1; G.fx.warp = 1;
+          if (S % 2 === 0)
+            for (let i = 0; i < 6; i++) {
+              const a = M.rand(0, TAU), R = M.rand(50, 110);
+              const x = tx + Math.cos(a) * R, y = ty + Math.sin(a) * R;
+              GM.raw({ x, y, angle: Math.atan2(ty - y, tx - x), speed: 1700,
+                sprite: 'kunai', color: 'silver', dmg: 34, r: 5,
+                delay: 9, pierce: 99, rail: 1, life: 2.2, tag: 'bombKnife' });
+            }
+        } else if (!f.fired2) {
+          f.fired2 = true;
+          GM.freeze = false; G.fx.invert = 0; G.fx.warp = 0;
+          for (const s of G.shots)
+            if (s.tag === 'bombKnife') { s.delay = 0; s.hitCd = 0; }
+          G.flash(.7, '#ffffff'); G.shake(16);
+        }
+        break;
+      }
+      case 'knifeFanBurst': {
+        /* 1 秒内高频率发射超高速密集扇形飞刀 */
+        if (u < 1 && S % 2 === 0)
+          for (let i = 0; i < 11; i++) {
+            const t = i / 10 - .5;
+            GM.raw({ x: px, y: py, angle: -Math.PI / 2 + t * 1.3,
+              speed: 1900, sprite: 'needle', color: 'blue', dmg: 26,
+              r: 4, pierce: 3, rail: 1, life: .8, tag: 'bombShot' });
+          }
+        break;
+      }
+      case 'shockwave': {
+        if (!f.fired2) {
+          f.fired2 = true;
+          GM.shock(px, py, 220, 'indigo', 560);
+          G.flash(.7, '#b8a8ff'); G.shake(18);
+        }
+        break;
+      }
+      case 'reverseClock': {
+        /* 时停 2 秒＋扭曲负片；传送 5 次，每次在 12 刻度召唤飞刀，
+           最后一次传回施法位置，时停结束后一齐射出 */
+        if (u < 2) {
+          GM.freeze = true; G.fx.invert = 1; G.fx.warp = 1;
+          if (S % 24 === 0) {
+            f.warpN = (f.warpN || 0) + 1;
+            if (f.warpN >= 5 && f.home && p) { p.x = f.home.x; p.y = f.home.y; }
+            else if (p) {
+              const a = f.warpN / 12 * TAU;
+              p.x = M.clamp(G.PF.w / 2 + Math.cos(a) * 150, 16, G.PF.w - 16);
+              p.y = M.clamp(G.PF.h * .62 + Math.sin(a) * 120, 16, G.PF.h - 16);
+            }
+            G.burst(p ? p.x : px, p ? p.y : py, 'violet', 22, 240, { type: 'shard' });
+            for (let i = 0; i < 12; i++) {
+              const a = -Math.PI / 2 - i / 12 * TAU;
+              GM.raw({ x: (p ? p.x : px) + Math.cos(a) * 54,
+                y: (p ? p.y : py) + Math.sin(a) * 54,
+                angle: Math.atan2(ty - ((p ? p.y : py) + Math.sin(a) * 54),
+                                  tx - ((p ? p.x : px) + Math.cos(a) * 54)),
+                speed: 1700, sprite: 'mirror', color: 'violet', dmg: 30,
+                r: 5, delay: 9, pierce: 99, rail: 1, life: 2.2, tag: 'bombKnife' });
+            }
+          }
+        } else if (!f.fired2) {
+          f.fired2 = true;
+          GM.freeze = false; G.fx.invert = 0; G.fx.warp = 0;
+          if (f.home && p) { p.x = f.home.x; p.y = f.home.y; }
+          for (const s of G.shots)
+            if (s.tag === 'bombKnife') { s.delay = 0; s.hitCd = 0; }
+          G.flash(.8, '#e8c8ff'); G.shake(18);
+        }
+        break;
+      }
+      case 'tripleFire': {
+        /* 4 秒内自机发射速度 3 倍 */
+        GM.fireRateMul = 3;
+        if (S % 10 === 0)
+          G.spawnParticle({ x: px, y: py, vx: 0, vy: -40,
+            color: 'white', life: .4, size: 6, type: 'spark' });
+        break;
+      }
+    }
+    if (f.t >= f.dur) {
+      GM.freeze = false; G.fx.invert = 0; G.fx.warp = 0;
+      GM.fireRateMul = 1;
+      GM.bombFx = null;
     }
   };
 
@@ -668,23 +1048,19 @@
     const sp = G.getSpell(p.charId, p.slots[p.slot].idx);
     const bm = sp.bomb;
     p.power = 0;
-    p.bombTime = bm.dur; p.invuln = bm.dur + .9;
+    /* 统一时序：先 2 秒无敌蓄力，再由 tickBomb 触发全屏伤害＋清弹，
+       最后执行该符卡专属的持续效果。 */
+    p.bombTime = bm.dur + 2;
+    p.invuln = Math.max(p.invuln, bm.dur + 2.3);
     GM.bombFx = { type: bm.type, fx: bm.fx || sp.shot.type,
-      color: bm.color, dur: bm.dur, radius: bm.radius, t: 0,
-      power: bm.power * p.bombScale, dealt: 0, name: bm.name };
-    // 清屏 + 伤害
-    G.clearBullets(true);
-    G.lasers.length = 0;
-    for (const e of G.enemies) GM.damageEnemy(e, bm.power * .8 * p.bombScale);
-    if (G.boss && G.boss.spell && G.boss.spell.type === 'barrier') {
-      G.boss.hp -= bm.power * .5 * p.bombScale;
-      G.boss.flash = .3;
-    }
+      color: bm.color, dur: bm.dur + 2, radius: bm.radius, t: 0,
+      power: bm.power * p.bombScale, name: bm.name, script: bm.script,
+      fired: false, fired2: false, step: 0, home: null, warpN: 0 };
     // 音乐：短暂角色插入句（大招专属，符卡序号决定变奏）
     G.audio.playJingle(p.charId, p.slots[p.slot].idx);
     G.audio.sfx('bomb');
-    G.flash(.85, '#fff2d0'); G.shake(18);
-    G.burst(p.x, p.y, bm.color, 42, 340, { type: 'shard' });
+    G.flash(.35, '#fff2d0'); G.shake(8);
+    G.burst(p.x, p.y, bm.color, 20, 220, { type: 'shard' });
     G.floatText(G.PF.w / 2, G.PF.h * .42, bm.name, '#fff0d0', 22, 2.0);
     if (fromGrace) {
       GM.grace = null; G.timeScale = 1;
@@ -772,23 +1148,37 @@
     }
 
     GM.updatePlayer(dt);
+    GM.tickSpell(dt);
     GM.updateShots(dt);
-    GM.updateBullets(dt);
-    GM.updateLasers(dt);
-    GM.updateEnemies(dt);
-    GM.updateBoss(dt);
+    GM.updateWaves(dt);
+    /* 时停大招：敌人、敌弹、Boss 全部静止，自机与自身弹幕仍可动 */
+    if (!GM.freeze) {
+      GM.updateBullets(dt);
+      GM.updateLasers(dt);
+      GM.updateEnemies(dt);
+      GM.updateBoss(dt);
+    }
     G.updateParticles(dt);
 
-    if (GM.declare) { GM.declare.t += dt; if (GM.declare.t > 2.3) GM.declare = null; }
-    if (GM.bombFx) {
-      GM.bombFx.t += dt;
-      // 持续伤害
-      if (G.boss && G.boss.spell && G.boss.spell.type === 'barrier') {
-        const per = GM.bombFx.power * .5 / GM.bombFx.dur * dt;
-        G.boss.hp -= per; G.boss.flash = .12;
+    /* 护盾：屏蔽靠近自机的敌弹 */
+    if (G.player && G.player.shield > 0) {
+      G.player.shield -= dt;
+      const px = G.player.x, py = G.player.y;
+      const b = G.bullets; let n = 0;
+      for (let i = 0; i < b.length; i++) {
+        if (M.dist2(px, py, b[i].x, b[i].y) < 92 * 92) { G.poolB.push(b[i]); continue; }
+        b[n++] = b[i];
       }
-      if (GM.bombFx.t >= GM.bombFx.dur) GM.bombFx = null;
+      b.length = n;
     }
+    /* 沉默：持续清除敌人发出的弹幕 */
+    if (GM.silence > 0) { GM.silence -= dt; G.bullets.length = 0; G.lasers.length = 0; }
+    /* 负片 / 扭曲特效的兜底衰减（大招会每帧置回 1） */
+    G.fx.invert = Math.max(0, (G.fx.invert || 0) - dt * 2);
+    G.fx.warp = Math.max(0, (G.fx.warp || 0) - dt * 2);
+
+    if (GM.declare) { GM.declare.t += dt; if (GM.declare.t > 2.3) GM.declare = null; }
+    GM.tickBomb(dt);
     // 灵力自然回复（缓慢）
     const p = G.player;
     if (p && p.power < 100) p.power = Math.min(100, p.power + dt * 1.6 * p.powerGain);
@@ -928,7 +1318,13 @@
         }
         G.burst(s.x, s.y, s.color, 6, 80);
       }
-      if (mo !== 'expand' && (s.x < -30 || s.x > W + 30 || s.y < -40 || s.y > G.PF.h + 40)) { G.poolS.push(s); continue; }
+      /* 装饰物（法阵 / 阴阳玉 / 浮游炮 / 传送阵）跟随自机或固定摆位，
+         不能被常规越界逻辑回收，否则贴边时会整件消失。 */
+      const fixed = s.tag === 'decor' || s.tag === 'bombOrb' || s.tag === 'clockFace';
+      if (!fixed && mo !== 'expand' && mo !== 'wave' &&
+          (s.x < -30 || s.x > W + 30 || s.y < -40 || s.y > G.PF.h + 40)) {
+        G.poolS.push(s); continue;
+      }
 
       /* 命中判定：用上一帧到当前帧的线段做扫掠检测，高速弹也不会穿模 */
       if (s.hitCd <= 0 && s.delay <= 0) {
@@ -940,7 +1336,9 @@
           }
         }
         if (!hit && G.boss && G.boss.spell) {
-          const b = G.boss, rr = 30 + s.r;
+          /* 受击半径与立绘实体持平（袖口 / 下摆约 ±40px），
+             不含背后那圈半透明光轮；原先 30 明显小于贴图。 */
+          const b = G.boss, rr = 42 + s.r;
           if (M.segDist2(s.px, s.py, s.x, s.y, b.x, b.y) < rr * rr) {
             if (b.spell.type === 'barrier') {
               b.hp -= s.dmg; b.flash = .1;
@@ -957,6 +1355,9 @@
           }
         }
         if (hit) {
+          /* 「好多流星」：命中处迸出星屑 */
+          if (s.onHit === 'star')
+            G.burst(s.x, s.y, 'gold', 7, 150, { type: 'shard' });
           if (s.onHit === 'seal' && !s.sealed) {
             s.sealed = 1;
             spawned.push({ x: s.x, y: s.y, angle: -Math.PI / 2, speed: 0,
