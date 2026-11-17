@@ -322,7 +322,315 @@
     };
   })();
 
-  MUS.order = ['title', 'stage', 'boss1', 'boss2', 'boss3'];
+  /* =======================================================
+   * 第四～六面新增曲目（同样为约三分钟一次性展开）
+   * stage2 星読み / stage3 無音劇場 / stage4 名の無い間
+   * boss4 天読星羅 / boss5 音無楽々 / boss6 無名の守人
+   * ======================================================= */
+
+  /* ---- stageMirror：第二面道中（BPM146，A 羽，镜面般的严格对称） ---- */
+  (function () {
+    const m = 16;
+    const A = M("A4:1 C5:1 E5:2 A5:2 G5:2 E5:2 C5:2 B4:2");
+    const B = M("E5:1 G5:1 A5:2 C6:2 B5:2 A5:2 G5:2 E5:2");
+    const C = M("C5:2 E5:2 G5:4 -:2 E5:2 D5:2 B4:2");
+    const D = M("D5:1 F5:1 A5:2 C6:2 B5:2 A5:2 F5:2 E5:2");
+    const A5 = trans(A, 5), A7 = trans(A, 7), A12 = trans(A, 12), A3v = trans(A, 3);
+    const B5 = trans(B, 5), C5 = trans(C, 5), D5 = trans(D, 5);
+    const Ai = inv(A, 76), Bi = inv(B, 76);
+    const Ar = retro(A), Br = retro(B);
+    const ch1 = [['A3', 'm'], ['F3', 'M'], ['C4', 'M'], ['G3', 'M']];
+    const ch2 = transChords(ch1, 5);
+    const t1 = transChords(ch1, 7), t2 = transChords(ch2, 7);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·映らぬ池', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 対になる弾', 'piano+', cat(ch2, ch1), A, B, A3v, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·弦', 'strings', cat(ch1, ch2), Ai, B, C, D, A, Br, C5, A),
+      P8(m, 'Ⅱ′ 模进·七度', 'piano+', cat(t1, t2), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅲ 华彩·逆行', 'solo', cat(ch2, ch1), Ar, Br, A, C, A12, B, C, D),
+      P8(m, 'Ⅳ 高潮·全奏', 'full', cat(ch1, t2), A12, B5, A12, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 二拍骤停', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅵ 终止', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12)
+    ];
+    MUS.tracks.stageMirror = {
+      id: 'stageMirror', title: '映らぬ池の道中 ~ Mirror Path', jp: 'うつらぬいけのどうちゅう',
+      desc: '第二面道中（钢琴版）。A 羽调式、BPM146，严格的左右对称乐句呼应镜面弹幕；钢琴与弦乐交替，七度模进与逆行华彩，两拍骤停后收于 A 大三和弦。九段、约三分钟一次性展开的完整曲式（内部不含短循环）。',
+      descJa: '第二面道中（ピアノ版）。A羽調式・BPM146、厳密な左右対称の楽句が鏡面弾幕を反映。ピアノと弦の交替、七度模進と逆行、二拍の急停止、A長三和音で締める。九段・約三分の一回限りの展開（内部に短いループは無い）。',
+      bpm: 146, key: 'A羽', lead: 'piano', meter: 16, intensity: .70,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  /* ---- stageFire：第三面道中（BPM168，D 吕，祭典般的明快律动） ---- */
+  (function () {
+    const m = 16;
+    const A = M("D5:1 E5:1 G5:2 A5:2 G5:2 E5:2 D5:2 C5:2");
+    const B = M("A5:1 C6:1 D6:2 C6:2 A5:2 G5:2 E5:2 D5:2");
+    const C = M("G5:1 A5:1 C6:2 -:2 A5:2 G5:2 E5:2 D5:2");
+    const D = M("E5:1 G5:1 A5:2 C6:2 D6:2 C6:2 A5:2 G5:2");
+    const A5 = trans(A, 5), A7 = trans(A, 7), A12 = trans(A, 12), Am = trans(A, -3);
+    const B5 = trans(B, 5), C5 = trans(C, 5), D5 = trans(D, 5), Dm = trans(D, -3);
+    const Ai = inv(A, 79), Bi = inv(B, 79);
+    const Ar = retro(A), Br = retro(B);
+    const ch1 = [['D3', 'M'], ['G2', 'M7'], ['A2', 'M'], ['C3', 'M']];
+    const ch2 = [['G2', 'M'], ['A2', 'M'], ['Bb2', 'M'], ['D3', 'M7']];
+    const t1 = transChords(ch1, 5), t2 = transChords(ch2, 5);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·祭り', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 提灯', 'piano+', cat(ch2, ch1), A, B, A7, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·弦', 'strings', cat(ch1, ch2), Ai, B, C, D, A, Br, C5, A),
+      P8(m, 'Ⅱ′ 模进·五度', 'piano+', cat(t1, t2), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅲ 华彩·逆行', 'solo', cat(ch2, ch1), Ar, Br, C, D, A12, B, C, D),
+      P8(m, 'Ⅳ 高潮·全奏', 'full', cat(ch1, t2), A12, B5, A12, C5, A7, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 二拍骤停', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅵ 终止·点灯', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12)
+    ];
+    MUS.tracks.stageFire = {
+      id: 'stageFire', title: '忘却の祭火の道中 ~ Fire Path', jp: 'ぼうきゃくのまつりびのどうちゅう',
+      desc: '第三面道中（钢琴版）。D 吕音阶、BPM168，明快的祭典律动；钢琴齐奏与十六分琶音，五度模进与逆行华彩，两拍骤停后收于 D 大三和弦。九段、约三分钟一次性展开的完整曲式（内部不含短循环）。',
+      descJa: '第三面道中（ピアノ版）。D呂音階・BPM168、明るい祭りのリズム。ピアノ斉奏と十六分アルペジオ、五度模進と逆行、二拍の急停止、D長三和音で締める。九段・約三分の一回限りの展開（内部に短いループは無い）。',
+      bpm: 168, key: 'D吕', lead: 'piano', meter: 16, intensity: .85,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  /* ---- stage2：星読みの間（BPM132，D 羽，行星运行般的匀速感） ---- */
+  (function () {
+    const m = 16;
+    const A = M("D5:2 F5:2 A5:4 G5:2 F5:2 E5:2 D5:2");
+    const B = M("A5:2 C6:2 D6:4 C6:2 A5:2 G5:2 F5:2");
+    const C = M("F5:2 A5:2 C6:4 -:2 A5:2 G5:2 E5:2");
+    const D = M("E5:2 G5:2 A5:2 C6:2 D6:4 A5:2 G5:2");
+    const A5 = trans(A, 5), A7 = trans(A, 7), A12 = trans(A, 12), Ai = inv(A, 76);
+    const B5 = trans(B, 5), Bi = inv(B, 76), C5 = trans(C, 5), D5 = trans(D, 5);
+    const Ar = retro(A), Br = retro(B);
+    const ch1 = [['D3', 'm'], ['Bb2', 'M'], ['F3', 'M'], ['C3', 'M']];
+    const ch2 = transChords(ch1, 5);
+    const t1 = transChords(ch1, 5), t2 = transChords(ch2, 5);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·星图', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 双星', 'piano+', cat(ch2, ch1), A, B, A5, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·弦乐', 'strings', cat(ch1, ch2), Ai, B, C, D, A, Br, C5, A),
+      P8(m, 'Ⅱ′ 模进·五度', 'piano+', cat(t1, t2), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅲ 华彩·倒影', 'solo', cat(ch2, ch1), Ar, Br, Bi, D, A12, B, C, D),
+      P8(m, 'Ⅳ 高潮·全奏', 'full', cat(ch1, t2), A12, B5, A12, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 两拍骤停', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现·高八度', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅴ′ 展开·第七星', 'piano+', cat(t1, ch1), A5, B5, A7, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅴ″ 变奏·逆行轨道', 'solo', cat(ch2, ch1), Ar, Br, Ai, D, A12, B, C, D),
+      P8(m, 'Ⅴ‴ 第二高潮·天球开', 'full', cat(ch1, t2), A12, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅵ 终止·皮卡迪三度', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12)
+    ];
+    MUS.tracks.stage2 = {
+      id: 'stage2', title: '星図の間 ~ Between the Stars', jp: 'せいずのま',
+      desc: '第四面道中（钢琴版）。D 羽调式、BPM 132，用平稳的行星运行感铺开；钢琴分解和弦与弦乐铺底，中段作五度模进与倒影，两拍骤停后高八度再现，终于 D 大三和弦。九段、约三分钟。',
+      descJa: '第四面道中（ピアノ版）。D羽調式・BPM132、惑星の運行のような等速感。ピアノのアルペジオと弦、五度模進と反行、二拍の急停止と高オクターヴ再現、D長三和音で締める。九段・約三分。',
+      bpm: 132, key: 'D羽', lead: 'piano', meter: 16, intensity: .68,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  /* ---- stage3：無音の劇場（BPM148，A 羽，华尔兹般的 12 步拍） ---- */
+  (function () {
+    const m = 12;
+    const A = M("A4:1 C5:1 E5:2 G5:2 E5:2 C5:2 A4:2");
+    const B = M("E5:1 G5:1 A5:2 C6:2 B5:2 G5:2 E5:2");
+    const C = M("C5:2 E5:2 A5:2 -:2 G5:2 E5:2 C5:2");
+    const D = M("G5:1 A5:1 B5:2 C6:2 E6:2 C6:2 A5:2");
+    const A5 = trans(A, 5), A12 = trans(A, 12), Ai = inv(A, 76);
+    const A3v = trans(A, 3), C3v = trans(C, 3);
+    const B5 = trans(B, 5), Bi = inv(B, 76), C5 = trans(C, 5), D5 = trans(D, 5);
+    const Ar = retro(A), Br = retro(B), Cr = retro(C);
+    const ch1 = [['A3', 'm'], ['F3', 'M'], ['C4', 'M'], ['G3', 'M']];
+    const ch2 = transChords(ch1, 5);
+    const t1 = transChords(ch1, 3), t2 = transChords(ch2, 3);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·幕開', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 拍子', 'piano+', cat(ch2, ch1), A, B, A3v, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·弦乐', 'strings', cat(ch1, ch2), Ai, B, C, D, A, Br, C5, A),
+      P8(m, 'Ⅱ′ 模进·三度', 'piano+', cat(t1, t2), A3v, B5, A3v, C5, A, Bi, C3v, D5),
+      P8(m, 'Ⅲ 华彩·逆行', 'solo', cat(ch2, ch1), Ar, Br, Cr, D, A12, B, C, D),
+      P8(m, 'Ⅳ 高潮·合奏', 'full', cat(ch1, t2), A12, B5, A12, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 休止', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现·高八度', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅴ′ 展开·装饰音', 'piano+', cat(t1, ch1), A3v, B5, A3v, C5, A, Bi, C3v, D5),
+      P8(m, 'Ⅴ″ 变奏·两个声部', 'strings', cat(ch2, ch1), Ai, Br, C, D, A5, Bi, C5, A),
+      P8(m, 'Ⅴ‴ 第二高潮·满奏', 'full', cat(ch1, t2), A12, B5, A12, C5, A3v, Bi, C5, D5),
+      P8(m, 'Ⅵ 终止·皮卡迪三度', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12),
+      P8(m, 'Ⅵ 展开·三声部', 'piano+', cat(t1, ch1), A5, B5, A3v, C5, A, Bi, C3v, D5),
+      P8(m, 'Ⅵ′ 华彩·再逆行', 'solo', cat(ch2, ch1), Ar, Br, Cr, D, A12, B, C, D),
+      P8(m, 'Ⅵ″ 终前高潮', 'full', cat(ch1, t2), A12, B5, A12, C5, A3v, Bi, C5, D5),
+    ];
+    MUS.tracks.stage3 = {
+      id: 'stage3', title: '無音の劇場 ~ Silent Theater', jp: 'むおんのげきじょう',
+      desc: '第五面道中（钢琴版）。A 羽调式、BPM148，12 步一小节的圆舞感；钢琴主奏与弦乐交织，三度模进与逆行华彩，两拍休止后高八度再现，收于 A 大三和弦。九段、约三分钟。',
+      descJa: '第五面道中（ピアノ版）。A羽調式・BPM148、12歩小節のワルツ感。ピアノ主奏と弦、三度模進と逆行、二拍の休止と高オクターヴ再現、A長三和音で締める。九段・約三分。',
+      bpm: 148, key: 'A羽', lead: 'piano', meter: 12, intensity: .72,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  /* ---- stage4：名の無い間（BPM118，C 羽，最静的终盘道中） ---- */
+  (function () {
+    const m = 16;
+    const A = M("C5:3 E5:3 G5:4 -:2 F5:2 E5:2 D5:2");
+    const B = M("G5:3 Bb5:3 C6:4 Bb5:2 G5:2 F5:2 E5:2");
+    const C = M("Eb5:3 G5:3 Bb5:4 -:2 G5:2 F5:2 D5:2");
+    const D = M("F5:3 A5:3 C6:4 A5:2 F5:2 Eb5:2 D5:2");
+    const A5 = trans(A, 5), A7 = trans(A, 7), A12 = trans(A, 12), Ai = inv(A, 76);
+    const B5 = trans(B, 5), Bi = inv(B, 76), C5 = trans(C, 5), D5 = trans(D, 5);
+    const Ar = retro(A), Br = retro(B);
+    const ch1 = [['C3', 'sus'], ['G2', 'sus'], ['Ab2', 'M'], ['Eb3', 'M']];
+    const ch2 = transChords(ch1, 5);
+    const t1 = transChords(ch1, 7), t2 = transChords(ch2, 7);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·空白', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 静かな刻', 'strings', cat(ch2, ch1), A, B, A5, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·模进', 'piano+', cat(t1, t2), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅲ 华彩·倒影', 'solo', cat(ch1, ch2), Ai, Bi, Ar, C, A12, B, C, D),
+      P8(m, 'Ⅳ 高潮·全奏', 'full', cat(ch1, t2), A12, B5, A12, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 无音', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅵ 终止·皮卡迪三度', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12),
+      P8(m, 'Ⅴ′ 展开·空洞的回声', 'piano+', cat(t1, ch1), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅴ″ 变奏·倒影空白', 'solo', cat(ch2, ch1), Ai, Bi, Ar, C, A12, B, C, D),
+      P8(m, 'Ⅴ‴ 第二高潮', 'full', cat(ch1, t2), A12, B5, A12, C5, A7, Bi, C5, D5),
+    ];
+    MUS.tracks.stage4 = {
+      id: 'stage4', title: '名の無い間 ~ Nameless Room', jp: 'なのないま',
+      desc: '第六面道中（钢琴版）。C 羽调式、BPM118，最安静的终盘；四度叠置和弦制造空白感，钢琴与弦乐稀疏铺开，五度上行模进与倒影后两拍无音，收于 C 大三和弦。八段、约三分钟。',
+      descJa: '第六面道中（ピアノ版）。C羽調式・BPM118、最も静かな終盤。四度積み重ねの和音で空白を描き、五度模進と反行、二拍の無音を経てC長三和音へ。八段・約三分。',
+      bpm: 118, key: 'C羽', lead: 'piano', meter: 16, intensity: .55,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  /* ---- boss4：天読星羅（BPM152，G 羽，星图般的清晰上行） ---- */
+  (function () {
+    const m = 16;
+    const A = M("G4:1 B4:1 D5:2 G5:2 F#5:2 D5:2 B4:2 A4:2");
+    const B = M("D5:1 F#5:1 A5:2 D6:2 C6:2 A5:2 F#5:2 E5:2");
+    const C = M("B4:2 D5:2 G5:4 -:2 F#5:2 E5:2 D5:2");
+    const D = M("E5:1 G5:1 A5:2 B5:2 D6:2 B5:2 A5:2 G5:2");
+    const A5 = trans(A, 5), A7 = trans(A, 7), A12 = trans(A, 12), Am = trans(A, -3);
+    const B5 = trans(B, 5), Bm = trans(B, -3), C5 = trans(C, 5), Cm = trans(C, -3);
+    const D5 = trans(D, 5), Dm = trans(D, -3);
+    const Ai = inv(A, 79), Bi = inv(B, 79);
+    const Ar = retro(A), Br = retro(B), Cr = retro(C);
+    const ch1 = [['G3', 'M'], ['E3', 'm'], ['C3', 'M'], ['D3', 'M']];
+    const ch2 = [['E3', 'm'], ['C3', 'M'], ['D3', 'M'], ['B2', 'm']];
+    const t1 = transChords(ch1, 5), t2 = transChords(ch2, 5);
+    const t3 = transChords(ch1, 7), t4 = transChords(ch2, 7);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·星図', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 星點', 'piano+', cat(ch2, ch1), A, B, A5, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·轨道', 'strings', cat(ch1, ch2), Ai, B, C, D, A, Br, C5, A),
+      P8(m, 'Ⅱ′ 模进·五度', 'piano+', cat(t1, t2), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅲ 华彩·星座', 'solo', cat(ch2, ch1), Ar, Br, Cr, D, A12, B, C, D),
+      P8(m, 'Ⅲ′ 转调·七度', 'brass', cat(t3, t4), A7, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅳ 高潮·天球', 'full', cat(ch1, t2), A12, B5, A12, C5, A7, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 两拍骤停', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现·高八度', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅵ 终止·皮卡迪三度', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12),
+      P8(m, 'Ⅴ′ 展开·第八星', 'piano+', cat(t3, ch1), A7, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅴ″ 变奏·轨道逆行', 'solo', cat(ch2, ch1), Ar, Br, Ai, D, A12, B, C, D),
+      P8(m, 'Ⅴ‴ 第二高潮·星群', 'full', cat(ch1, t2), A12, B5, A7, C5, A5, Bi, C5, D5),
+    ];
+    MUS.tracks.boss4 = {
+      id: 'boss4', title: '星を読む者 ~ Star Reader', jp: 'ほしをよむもの',
+      descJa: '天読星羅のテーマ（ピアノ版）。G調の明晰な上行旋律、BPM152。星図のように等間隔で並ぶアルペジオと弦、五度・七度の転調、反行カデンツァ、二拍の急停止を経てG長三和音で締める。十段・約三分。',
+      desc: '天読星羅主题（钢琴版）。G 调清晰的上行旋律，BPM152；像星图一样等距排列的琶音与弦乐，五度与七度转调、倒影华彩、两拍骤停后收于 G 大三和弦。十段、约三分钟。',
+      bpm: 152, key: 'G', lead: 'piano', meter: 16, intensity: .82,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  /* ---- boss5：音無楽々（BPM140，E 羽，12 步乐句＝乐谱感） ---- */
+  (function () {
+    const m = 12;
+    const A = M("E4:1 G4:1 B4:2 E5:2 D5:2 B4:2 G4:2 A4:2");
+    const B = M("B4:1 D5:1 F#5:2 B5:2 A5:2 F#5:2 D5:2 E5:2");
+    const C = M("G4:2 B4:2 D5:4 -:2 B4:2 A4:2 F#4:2");
+    const D = M("A4:1 C5:1 E5:2 G5:2 F#5:2 E5:2 D5:2 B4:2");
+    const A5 = trans(A, 5), A7 = trans(A, 7), A12 = trans(A, 12), Am = trans(A, -3);
+    const B5 = trans(B, 5), Bm = trans(B, -3), C5 = trans(C, 5), D5 = trans(D, 5);
+    const Dm = trans(D, -3);
+    const Ai = inv(A, 76), Bi = inv(B, 76);
+    const Ar = retro(A), Br = retro(B), Cr = retro(C);
+    const ch1 = [['E3', 'm'], ['C3', 'M'], ['G3', 'M'], ['D3', 'M']];
+    const ch2 = [['C3', 'M'], ['G3', 'M'], ['D3', 'M'], ['A2', 'm']];
+    const t1 = transChords(ch1, 5), t2 = transChords(ch2, 5);
+    const t3 = transChords(ch1, 7), t4 = transChords(ch2, 7);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·譜', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 音符', 'piano+', cat(ch2, ch1), A, B, A5, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·和音', 'strings', cat(ch1, ch2), Ai, B, C, D, A, Br, C5, A),
+      P8(m, 'Ⅱ′ 模进·五度', 'piano+', cat(t1, t2), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅲ 华彩·逆行', 'solo', cat(ch2, ch1), Ar, Br, Cr, D, A12, B, C, D),
+      P8(m, 'Ⅲ′ 转调·七度', 'brass', cat(t3, t4), A7, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅳ 高潮·楽章', 'full', cat(ch1, t2), A12, B5, A12, C5, A7, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 休止', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅵ 终止·無音', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12),
+      P8(m, 'Ⅴ′ 展开·装饰奏', 'piano+', cat(t3, ch1), A7, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅴ″ 变奏·无声之歌', 'strings', cat(ch2, ch1), Ai, Br, C, D, A5, Bi, C5, A),
+      P8(m, 'Ⅴ‴ 第二高潮·全乐器', 'full', cat(ch1, t2), A12, B5, A12, C5, A7, Bi, C5, D5),
+      P8(m, 'Ⅵ 展开·第二乐句', 'piano+', cat(t3, ch1), A7, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅵ′ 变奏·和声倒置', 'strings', cat(ch2, ch1), Ai, Br, C, D, A5, Bi, C5, A),
+      P8(m, 'Ⅵ″ 终前全奏', 'full', cat(ch1, t2), A12, B5, A12, C5, A7, Bi, C5, D5),
+    ];
+    MUS.tracks.boss5 = {
+      id: 'boss5', title: '名を歌う者 ~ Name Singer', jp: 'なをうたうもの',
+      descJa: '音無楽々のテーマ（ピアノ版）。E羽調式・BPM140、12歩の楽句が五線譜を思わせる。等間隔のアルペジオ、五度・七度の転調、逆行カデンツァ、二拍の完全休止を経てE長三和音へ。「無音」の終止が特徴。十段・約三分。',
+      desc: '音無楽々主题（钢琴版）。E 羽调式、BPM140，12 步乐句让人想起五线谱；等距琶音、五度与七度转调、逆行华彩、两拍完全休止后收于 E 大三和弦，终止式刻意「无声」。十段、约三分钟。',
+      bpm: 140, key: 'E羽', lead: 'piano', meter: 12, intensity: .86,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  /* ---- boss6：無名の守人（BPM160，D 羽，终面最厚） ---- */
+  (function () {
+    const m = 16;
+    const A = M("D5:1 F5:1 A5:2 D6:2 C6:2 A5:2 F5:2 E5:2");
+    const B = M("A5:1 C6:1 D6:2 F6:2 E6:2 C6:2 A5:2 G5:2");
+    const C = M("F5:2 A5:2 C6:4 -:2 A5:2 F5:2 D5:2");
+    const D = M("G5:1 Bb5:1 C6:2 D6:2 F6:2 D6:2 C6:2 Bb5:2");
+    const A5 = trans(A, 5), A7 = trans(A, 7), A12 = trans(A, 12), Am = trans(A, -3);
+    const B5 = trans(B, 5), Bm = trans(B, -3), C5 = trans(C, 5), Cm = trans(C, -3);
+    const D5 = trans(D, 5), Dm = trans(D, -3);
+    const Ai = inv(A, 79), Bi = inv(B, 79), Ci = inv(C, 79);
+    const Ar = retro(A), Br = retro(B), Cr = retro(C), Dr = retro(D);
+    const ch1 = [['D3', 'm'], ['Bb2', 'M'], ['F3', 'M'], ['C3', 'M']];
+    const ch2 = [['Bb2', 'M'], ['F3', 'M'], ['C3', 'M'], ['G2', 'm']];
+    const t1 = transChords(ch1, 5), t2 = transChords(ch2, 5);
+    const t3 = transChords(ch1, 7), t4 = transChords(ch2, 7);
+    const sections = [
+      P8(m, 'Ⅰ 呈示·無題', 'piano', cat(ch1, ch2), A, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅰ′ 曼荼羅', 'piano+', cat(ch2, ch1), A, B, A5, C, A, Bi, C5, D),
+      P8(m, 'Ⅱ 承接·弦', 'strings', cat(ch1, ch2), Ai, B, C, D, A, Br, C5, A),
+      P8(m, 'Ⅱ′ 模进·五度', 'piano+', cat(t1, t2), A5, B5, A5, C5, A, Bi, C5, D5),
+      P8(m, 'Ⅲ 华彩·四重逆行', 'solo', cat(ch2, ch1), Ar, Br, Cr, Dr, A12, B, C, D),
+      P8(m, 'Ⅲ′ 转调·七度', 'brass', cat(t3, t4), A7, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅳ 全奏·封印', 'full', cat(ch1, t2), A12, B5, A12, C5, A7, Bi, C5, D5),
+      P8(m, 'Ⅳ′ 二拍无音', 'break', cat(ch1, ch2), A, B, A, C, A, B, C, D),
+      P8(m, 'Ⅴ 再现·高八度', 'piano+', cat(ch1, ch2), A12, B, A, C, A5, Bi, C, D),
+      P8(m, 'Ⅴ′ 第二高潮', 'full', cat(t1, t2), A7, B5, A12, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅵ 终止·名を返す', 'cadence', cat(ch1, ch2), A, B, Ar, C, D5, A5, D5, A12),
+      P8(m, 'Ⅴ″ 展开·无名之众', 'piano+', cat(t3, ch1), A7, B5, A7, C5, A5, Bi, C5, D5),
+      P8(m, 'Ⅴ‴ 变奏·四重逆行', 'solo', cat(ch2, ch1), Ar, Br, Cr, Dr, A12, B, C, D),
+    ];
+    MUS.tracks.boss6 = {
+      id: 'boss6', title: '結界の裡 ~ Inside the Barrier', jp: 'けっかいのうち',
+      descJa: '無名の守人のテーマ（ピアノ版）。D羽調式・BPM160、最も厚い編成。曼荼羅のように対称的なアルペジオ、五度・七度の転調、四重逆行のカデンツァ、二拍の無音、二度の満開を経てD長三和音——名が返された瞬間。十一段・約三分。',
+      desc: '無名の守人主题（钢琴版）。D 羽调式、BPM160，最厚的编成；曼荼罗般对称的琶音、五度与七度转调、四重逆行华彩、两拍无音、两度满开后收于 D 大三和弦——名字被归还的一瞬。十一段、约三分钟。',
+      bpm: 160, key: 'D羽', lead: 'piano', meter: 16, intensity: 1,
+      sections, order: sections.map((_, i) => i)
+    };
+  })();
+
+  MUS.order = ['title', 'stage', 'stage2', 'stage3', 'stage4', 'boss1', 'boss2', 'boss3', 'boss4', 'boss5', 'boss6'];
 
   /* =======================================================
    * 自机大招插入乐句（按符卡序号变调・变奏，故五张符卡各不相同）

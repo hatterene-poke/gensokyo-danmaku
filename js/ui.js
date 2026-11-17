@@ -14,10 +14,12 @@
   U.titleSel = 0;
   U.screens = {
     title: 'scr-title', select: 'scr-select', config: 'scr-config',
-    story: 'scr-story', pause: 'scr-pause', result: 'scr-result', gallery: 'scr-gallery'
+    story: 'scr-story', pause: 'scr-pause', result: 'scr-result', gallery: 'scr-gallery',
+    practice: 'scr-practice'
   };
   const MENU = [
     { label: '異変調査を始める', act: 'to-select' },
+    { label: '符卡練習', act: 'to-practice' },
     { label: '資料室・設定', act: 'to-gallery', arg: 'story' },
     { label: '音楽鑑賞', act: 'to-gallery', arg: 'music' },
     { label: '操作・オプション', act: 'to-gallery', arg: 'option' }
@@ -35,6 +37,7 @@
     switch (G.state) {
       case 'title': U.renderTitle(); break;
       case 'select': U.renderSelect(); break;
+      case 'practice': U.renderPractice(); break;
       case 'config': U.renderConfig(); break;
       case 'gallery': U.renderGallery(); break;
       case 'result': if (G.game.result) U.showResult(G.game.result); break;
@@ -61,6 +64,7 @@
     U.act(m.act, m.arg);
   };
   U.goTitle = function () {
+    U.practiceMode = false;
     G.state = 'title'; U.show('title'); U.renderTitle();
     G.audio.init(); G.audio.playBGM('title');
   };
@@ -106,6 +110,46 @@
     U.renderDiff();
   };
 
+  /* ---------------- Boss 练习 ---------------- */
+  U.practiceBoss = 0;
+  U.practiceMode = false;
+  U.renderPractice = function () {
+    const box = $('practice-bosses'); if (!box) return;
+    box.innerHTML = G.BOSSES.list.map((b, i) => `
+      <div class="lib-item ${i === U.practiceBoss ? 'sel' : ''}" data-pboss="${i}">
+        <div class="lib-glyph" style="color:${b.color}">${b.emblem}</div>
+        <div><b>第${['一','二','三','四','五','六'][i]}面 · ${esc(b.name)}</b><br>
+          <small style="color:#a99aa7">${esc(b.title)}　·　${b.spells.length} 枚符卡</small></div>
+      </div>`).join('');
+    const row = $('practice-diff');
+    if (row) row.innerHTML = G.DIFFS.map((d, i) => `
+      <div class="diff-btn ${i === U.diffIdx ? 'sel' : ''}" data-diff="${i}">
+        <div class="db-no">${d.no}</div>
+        <div class="db-zh">${G.lang === 'zh' ? d.zh : d.ja}</div>
+      </div>`).join('');
+
+    /* 选中 Boss 的立绘预览：点击列表时即时重绘，给出明确的画面反馈 */
+    const def = G.BOSSES.get(U.practiceBoss);
+    const info = $('practice-info');
+    if (info) info.innerHTML = `<b>${esc(def.name)}</b>　${esc(def.title)}<br>
+      <span style="color:#9d8fa8">${esc(def.quote)}</span><br>
+      符卡 ${def.spells.length} 枚　·　${def.spells.map(s => esc(s.name)).join('<br>')}`;
+    const cv = $('practice-canvas');
+    if (cv && G.render && G.render.withCtx) G.render.withCtx(cv, cc => {
+      const g = cc.createRadialGradient(cv.width / 2, cv.height * .38, 20,
+        cv.width / 2, cv.height * .42, cv.width * .7);
+      g.addColorStop(0, def.palette[1] || '#241634'); g.addColorStop(1, '#0a0712');
+      cc.fillStyle = g; cc.fillRect(0, 0, cv.width, cv.height);
+      /* 结界光轮 */
+      cc.save(); cc.globalAlpha = .18; cc.strokeStyle = def.color; cc.lineWidth = 2;
+      cc.beginPath(); cc.arc(cv.width / 2, cv.height * .45, 118, 0, G.TAU); cc.stroke();
+      cc.restore();
+      cc.save(); cc.translate(cv.width / 2, cv.height * .56); cc.scale(2.9, 2.9);
+      G.render.drawBoss({ def, x: 0, y: 0, flash: 0, bob: 0 }, false);
+      cc.restore();
+    });
+  };
+
   /* ---------------- 难度选择（原作四档） ---------------- */
   U.renderDiff = function () {
     const row = $('diff-row'); if (!row) return;
@@ -148,6 +192,19 @@
           <div class="lib-bomb"><b>${esc(sp.bomb.name)}</b>　${esc(sp.bomb.desc)}</div>
         </div>
       </div>`).join('');
+
+    /* 从 Boss 练习进来的编成：按钮文案与返回目标都要对应练习 */
+    if (U.practiceMode) {
+      const back = document.querySelector('#scr-config [data-act="to-select"]');
+      if (back) { back.dataset.act = 'to-practice'; back.textContent = '← 返回 Boss 练习'; }
+      const go = document.querySelector('#scr-config [data-act="start-game"]');
+      if (go) go.textContent = '出击 · 开始 Boss 练习 →';
+    } else {
+      const back = document.querySelector('#scr-config [data-act="to-practice"]');
+      if (back) { back.dataset.act = 'to-select'; back.textContent = '← 返回机体选择'; }
+      const go = document.querySelector('#scr-config [data-act="start-game"]');
+      if (go) go.textContent = '出击 · 开始异变调查 →';
+    }
   };
   U.equip = function (i) {
     U.deck[U.activeSlot] = i;
@@ -204,7 +261,9 @@
       ? `<span class="cheat-tag">${zh ? '赖皮通关' : 'ずる再戦クリア'} ×${cheats}</span>` : '';
     $('result-body').innerHTML = `
       <div style="text-align:center;font-size:15px;color:#e8c57a;letter-spacing:3px;margin-bottom:10px">
-        ${esc(c.name)}　·　${r.clear ? '全三面 踏破' : '第 ' + r.stage + ' 面 まで'}　${cheatTag}</div>
+        ${esc(c.name)}　·　${r.practice
+          ? (zh ? '符卡練習 · ' + G.BOSSES.get(r.stage - 1).name : '符卡練習 · ' + G.BOSSES.get(r.stage - 1).name)
+          : (r.clear ? (zh ? '全六面 踏破' : '全六面 踏破') : '第 ' + r.stage + ' 面 まで')}　${cheatTag}</div>
       <table>
         <tr><td>SCORE</td><td>${r.score.toLocaleString()}</td></tr>
         <tr><td>擦弾 GRAZE</td><td>${r.graze}</td></tr>
@@ -241,7 +300,7 @@
         <div class="gal-sec"><h3>二種類の符卡</h3>
         <p><b>時限符卡</b>：固定時間（21～26 秒）で終了。撃破ではなく「耐え切る」事が目的。画面上部の水色ゲージが残り時間。</p>
         <p><b>結界符卡</b>：結界条（赤い HP バー）を削り切れば終了。こちらにも 105～140 秒の長い時限が付き、時間切れでも次へ進む。</p>
-        <p>全ての符卡を終えた時点で Boss 撃破。道中・Boss 戦は全三面。</p></div>`;
+        <p>全ての符卡を終えた時点で Boss 撃破。道中・Boss 戦は全六面。</p></div>`;
     } else if (U.galTab === 'chars') {
       const zh = G.lang === 'zh';
       body.innerHTML = `<div class="gal-sec"><h3>自機　—　原作設定に準拠</h3>
@@ -266,10 +325,10 @@
           </table></div>`).join('');
     } else if (U.galTab === 'enemy') {
       const zh = G.lang === 'zh';
-      body.innerHTML = `<div class="gal-sec"><h3>三面の弾幕語彙</h3>
+      body.innerHTML = `<div class="gal-sec"><h3>六面の弾幕語彙</h3>
         <p>${U.L(
-          '三名 Boss 的弹幕机构刻意互不重叠：一面是「文字被写下」的书写型几何，二面是「成对与折返」的镜面反射，三面是「起火→拍子→行列→落灰」的祭典流程。同一 Boss 内每张符卡也各用一套独立机构。',
-          '三人の Boss の弾幕機構は、意図的に重ならないように組んでいる。一面は「文字が書かれる」書写型の幾何、二面は「対になり返る」鏡面反射、三面は「火を起こし・拍子を打ち・行列が巡り・灰が落ちる」祭りの進行。同一 Boss の中でも、各符卡は独立した機構しか使わない。')}</p></div>
+          '六名 Boss 的弹幕语汇刻意互不重叠：一面「文字被写下」的书写几何，二面「成对与折返」的镜面反射，三面「火柱→拍子→行列→花火」的祭典流程，四面「星图与椭圆轨道」的天文几何，五面「五线谱与音符」的乐谱声波，六面「曼荼罗与封印柱」的结界几何。同一 Boss 内每张符卡也各用一套独立造型。',
+          '六人の Boss の弾幕語彙は意図的に重ならない。一面は書写型の幾何、二面は鏡面反射、三面は祭りの進行、四面は星図と楕円軌道の天文幾何、五面は五線譜と音符の楽譜音波、六面は曼荼羅と封印柱の結界幾何。各符卡は独立した造型しか使わない。')}</p></div>
         <div class="gal-sec"><h3>道中の雑魚（全て本作オリジナル）</h3>
         ${Object.values(G.ENEMY_TYPES).map(e => `<p><b>${esc(e.glyph)}</b>　${esc(e.desc)}</p>`).join('')}</div>` +
         G.BOSSES.list.map(d => `<div class="gal-sec"><h3 style="color:${d.color}">${esc(d.emblem)}　${esc(d.name)}　<small>${esc(d.title)}</small></h3>
@@ -287,8 +346,8 @@
       body.innerHTML = `<div class="gal-sec"><h3>楽曲一覧　—　ピアノ主奏 / Web Audio 实时合成</h3>
         <p style="font-size:12px;color:#a99aa7">${esc(G.lang === 'zh' ? G.LORE.music : (G.LORE.musicJa || G.LORE.music))}</p>
         <p style="font-size:12px;color:#e8c57a">${G.lang === 'zh'
-          ? '五首均为约三分钟一次性展开的完整曲式（呈示→模进→转调→高潮→两拍骤停→再现→终止），不再使用二十秒短循环。'
-          : '五曲はいずれも約三分の一度きりの展開（提示→模進→転調→高潮→二拍の急停止→再現→終止）。二十秒の短いループは廃止した。'}</p>
+          ? '十一首均为约三分钟一次性展开的完整曲式（呈示→模进→转调→高潮→两拍骤停→再现→终止），曲子内部不含短循环段落；播完一遍后自然接回开头，保证战斗时不间断。'
+          : '十一曲はいずれも約三分の一度きりの展開（提示→模進→転調→高潮→二拍の急停止→再現→終止）。曲内部に短いループは無く、最後まで鳴ると自然に先頭へ戻る。'}</p>
         ${G.MUSIC.order.map(id => {
         const t = G.MUSIC.tracks[id];
         const steps = t.order.reduce((s, i) => s + t.sections[i].steps, 0);
@@ -348,6 +407,19 @@
       case 'to-select':
         G.state = 'select'; U.show('select'); U.renderSelect();
         G.audio.init(); G.audio.playBGM('title'); G.audio.sfx('ui'); break;
+      case 'to-practice':
+        G.state = 'practice'; U.show('practice'); U.renderPractice();
+        G.audio.init(); G.audio.playBGM('title'); G.audio.sfx('ui'); break;
+      case 'start-practice':
+        G.audio.init(); G.audio.sfx('ok');
+        U.practiceMode = false;
+        G.diff = G.DIFFS[U.diffIdx];
+        G.game.startBossPractice(U.practiceBoss, U.charId, U.deck.slice()); break;
+      case 'practice-config':
+        /* 练习模式也走同一套机体选择 + 符卡编成，只是完成后回到练习 */
+        U.practiceMode = true;
+        G.state = 'select'; U.show('select'); U.renderSelect();
+        G.audio.init(); G.audio.sfx('ui'); break;
       case 'to-config':
         G.state = 'config'; U.show('config'); U.activeSlot = 0; U.renderConfig(); G.audio.sfx('ok'); break;
       case 'to-gallery':
@@ -357,15 +429,24 @@
       case 'start-game':
         G.audio.init(); G.audio.sfx('ok');
         G.diff = G.DIFFS[U.diffIdx];
-        G.game.startGame(U.charId, U.deck.slice()); break;
+        if (U.practiceMode) {
+          U.practiceMode = false;
+          G.game.startBossPractice(U.practiceBoss, U.charId, U.deck.slice());
+        } else G.game.startGame(U.charId, U.deck.slice());
+        break;
       case 'set-diff':
         U.diffIdx = M.clamp(+arg, 0, 3); G.diff = G.DIFFS[U.diffIdx];
-        G.audio.sfx('ui'); U.renderDiff(); U.loc(); break;
+        G.audio.sfx('ui'); U.renderDiff();
+        if (G.state === 'practice') U.renderPractice();
+        U.loc(); break;
       case 'toggle-lang': G.toggleLang(); break;
       case 'resume': G.game.togglePause(); break;
       case 'retry':
         G.diff = G.DIFFS[U.diffIdx];
-        G.game.startGame(U.charId, U.deck.slice()); break;
+        if (G.game.result && G.game.result.practice)
+          G.game.startBossPractice(G.game.result.stage - 1, U.charId, U.deck.slice());
+        else G.game.startGame(U.charId, U.deck.slice());
+        break;
       case 'continue':
         G.audio.sfx('ok');
         if (!G.game.continueGame()) G.ui.toast(G.lang === 'zh' ? '没有可继续的断点' : '再戦できる記録がありません');
@@ -398,6 +479,8 @@
       if (btn) { U.act(btn.dataset.act, btn.dataset.arg); return; }
       const menu = e.target.closest('[data-menu]');
       if (menu) { U.chooseMenu(+menu.dataset.menu); return; }
+      const pb = e.target.closest('[data-pboss]');
+      if (pb) { U.practiceBoss = +pb.dataset.pboss; G.audio.sfx('ui'); U.renderPractice(); return; }
       const ch = e.target.closest('[data-char]');
       if (ch) {
         U.charId = ch.dataset.char;

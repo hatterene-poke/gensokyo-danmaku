@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>东方残符异变 ～ Fragmented Spellcard Incident.</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 <div id="app">
@@ -48,6 +48,29 @@
       <div class="panel-foot">
         <button class="btn ghost" data-act="to-title" data-i18n="btn.backTitle">← 返回</button>
         <button class="btn primary" data-act="to-config" data-i18n="btn.toConfig">确定 · 配置符卡 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Boss 练习 ============ -->
+  <section class="screen hidden" id="scr-practice">
+    <div class="panel wide">
+      <div class="panel-head"><span class="panel-deco">◆</span><h2>符卡練習 &nbsp;— 選択した Boss と難度で対戦</h2><span class="panel-deco">◆</span></div>
+      <div class="config-hint">选择 Boss 与难度后，点「配置自机」选角色和符卡，最后进入 Boss 战（跳过道中与剧情）。战斗中按 <kbd>F2</kbd> 可跳过当前符卡。</div>
+      <div class="practice-scroll">
+        <div class="practice-layout">
+          <div class="practice-list" id="practice-bosses"></div>
+          <div class="practice-preview">
+            <canvas id="practice-canvas" width="300" height="360"></canvas>
+            <div id="practice-info"></div>
+          </div>
+        </div>
+      </div>
+      <div class="diff-row" id="practice-diff"></div>
+      <div class="panel-foot">
+        <button class="btn ghost" data-act="to-title">← 返回标题</button>
+        <button class="btn ghost" data-act="practice-config">配置自机与符卡 →</button>
+        <button class="btn primary" data-act="start-practice">直接开始 →</button>
       </div>
     </div>
   </section>
@@ -130,17 +153,17 @@
   </div>
 </div>
 
-<script src="js/core.js?v=2"></script>
-<script src="js/i18n.js?v=2"></script>
-<script src="js/music.js?v=2"></script>
-<script src="js/audio.js?v=2"></script>
-<script src="js/data.js?v=2"></script>
-<script src="js/patterns.js?v=2"></script>
-<script src="js/bosses.js?v=2"></script>
-<script src="js/stages.js?v=2"></script>
-<script src="js/render.js?v=2"></script>
-<script src="js/game.js?v=2"></script>
-<script src="js/ui.js?v=2"></script>
-<script src="js/main.js?v=2"></script>
+<script src="js/core.js?v=3"></script>
+<script src="js/i18n.js?v=3"></script>
+<script src="js/music.js?v=3"></script>
+<script src="js/audio.js?v=3"></script>
+<script src="js/data.js?v=3"></script>
+<script src="js/patterns.js?v=3"></script>
+<script src="js/bosses.js?v=3"></script>
+<script src="js/stages.js?v=3"></script>
+<script src="js/render.js?v=3"></script>
+<script src="js/game.js?v=3"></script>
+<script src="js/ui.js?v=3"></script>
+<script src="js/main.js?v=3"></script>
 </body>
 </html>

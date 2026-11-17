@@ -982,6 +982,1010 @@
     ]
   };
 
-  B.list = [chiyo, honoka, ryou];
+  /* =========================================================
+   * 四面 BOSS：天読 星羅 —— 把名字登记成星的天文官
+   * 语汇：星图、椭圆轨道、星座连线、流星雨、天球逆转。
+   * 与前三面的书写 / 镜面 / 祭典完全不重叠。
+   * ========================================================= */
+  const seira = {
+    id: 'seira', name: '天読 星羅', reading: 'あまよみ せいら',
+    title: '星を読む者', emblem: '星', music: 'boss4',
+    color: '#8fd0ff', sub: '#e4f2ff', hair: '#c8ddf5', robe: '#25406e',
+    palette: ['#071228', '#102a52', '#2c5a8c'], bg: 'star',
+    quote: '「名を書けば消える。けれど星にすれば、消えませんの。」',
+    desc: '结界深处的星象台上，有一位把名字一颗颗登记成星的天文官。她读出了第三面那叠残札上仅存的字迹，认为写下的名字会被擦掉、唱出的名字会散去，唯有编进星图的名字才真正不灭。',
+    lore: '「天读」是古时观测星象、为名字定位置的官。她并非想毁灭谁，只是把所有消失的东西都变成星，让它们停在天球上。星与星之间以等距的线相连——那正是她替它们写下的新名字。',
+    maxSpells: 5,
+    spells: [
+      {
+        name: '星符「星図の輪」', jp: 'せいふ・せいずのわ',
+        type: 'timeout', duration: 24, timeout: 24,
+        declare: '「まず、名前を星にします。すると、もう消えませんの。」',
+        hint: '时限符卡 · 等距同心星环一轮轮亮起',
+        hintJa: '時限符卡 · 等間隔の同心星輪が順に光る',
+        style: '参考原作：多重光轮与星型弹（彩符「孔雀七輪星」/ 星符「银河」）',
+        styleJa: '参考：多重光輪と星型弾（彩符「孔雀七輪星」/ 星符「銀河」）',
+        bgTint: '#071228',
+        intro(b) { b.setTarget(G.PF.w / 2, 156); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 156, 88, 28, .006);
+          const t = tier();
+          /* 主造型：严格等距的同心星环，环上每颗都是四角星芒 */
+          if (f % 58 === 0) {
+            const k = Math.floor(f / 58);
+            P.ring(T('starlight', {
+              x: b.x, y: b.y, n: 16 + t * 4,
+              speed: 118 + t * 6, a0: k * .13 * (t === 3 ? -1 : 1),
+              ripple: .03, r: 6, type: 'starpoint', life: 12,
+              colors: ['gold', 'cyan', 'white', 'silver']
+            }));
+          }
+          /* Normal 起：第二层反向星环，两环咬合成星图仪 */
+          if (t >= 1 && f % 58 === 29) P.ring(T('starlight', {
+            x: b.x, y: b.y, n: 12 + t * 2, speed: 96,
+            a0: -f * .005, ripple: .02, r: 5,
+            type: 'starpoint', color: 'silver', life: 12
+          }));
+          /* Hard 起：一发等距自机狙的「观测针」 */
+          if (t >= 2 && f % 116 === 58) P.fan(T('starlight', {
+            x: b.x, y: b.y, n: 5, spread: .42, aim: true,
+            speed: 150, r: 5, type: 'starpoint', color: 'white'
+          }));
+          /* Lunatic：第三层更快的逆向小星环，与外层反向咬合 */
+          if (t === 3 && f % 58 === 29) P.ring(T('starlight', {
+            x: b.x, y: b.y, n: 24, speed: 152, a0: f * .009,
+            ripple: .04, r: 4, type: 'starpoint', color: 'gold', life: 11
+          }));
+        }
+      },
+      {
+        name: '軌符「楕円の運行」', jp: 'きふ・だえんのうんこう',
+        type: 'timeout', duration: 24, timeout: 24,
+        declare: '「星は、決まった道を歩きます。名前も、そうあるべきですの。」',
+        hint: '时限符卡 · 行星沿椭圆轨道分层运行',
+        hintJa: '時限符卡 · 惑星が楕円軌道を層ごとに巡る',
+        style: '参考原作：天体轨道与行星弹（魔空「小行星带」/ 焰星「星球运转」）',
+        styleJa: '参考：天体軌道と惑星弾（魔空「小惑星帯」/ 焔星「星球運転」）',
+        bgTint: '#102a52',
+        intro(b) { b.setTarget(G.PF.w / 2, 150); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 150, 106, 34, .007);
+          const t = tier();
+          const bands = [1, 2, 3, 4][t];
+          /* 主造型：椭圆轨道上等距排布的行星弹，邻层公转方向相反 */
+          if (f % 62 === 0) P.orbitBand(T('starlight', {
+            x: b.x, y: b.y, bands, n: 14,
+            rx: 118, ry: 70, gap: 30,
+            a0: f * .005, speed: 120, bandDelay: .05,
+            colors: ['gold', 'cyan', 'silver', 'violet'],
+            type: 'big', r: 6, life: 12
+          }));
+          /* Normal 起：一枚彗星沿轨道切线拖尾划出 */
+          if (t >= 1 && f % 124 === 62) {
+            const a = f * .011;
+            for (let k = 0; k < 6; k++)
+              G.spawnBullet({ x: b.x + Math.cos(a) * (150 - k * 18),
+                y: b.y + Math.sin(a) * (88 - k * 10),
+                angle: a + Math.PI / 2, speed: 168 - k * 8,
+                delay: k * .04, r: 8 - k, type: 'star', color: 'white', life: 10 });
+          }
+          /* Hard 起：轨道交点处落下等距星点，把椭圆钉实 */
+          if (t >= 2 && f % 186 === 93) P.ring(T('starlight', {
+            x: b.x, y: b.y + 40, n: 10, speed: 108,
+            a0: -f * .006, r: 5, type: 'starpoint', color: 'cyan', life: 11
+          }));
+          /* Lunatic：外层再套一条更大的逆行轨道 */
+          if (t === 3 && f % 124 === 0) P.orbitBand(T('starlight', {
+            x: b.x, y: b.y, bands: 2, n: 18,
+            rx: 220, ry: 130, gap: 26, a0: -f * .008,
+            speed: 138, type: 'starpoint', colors: ['white', 'gold'], r: 5, life: 11
+          }));
+        }
+      },
+      {
+        name: '連符「星座の結び」', jp: 'れんぷ・せいざのむすび',
+        type: 'barrier', hp: 9800, timeout: 108,
+        declare: '「星と星を結べば、名前になります。結びましょう。」',
+        hint: '结界符卡 · 星点之间以弹道连成几何星座',
+        hintJa: '結界符卡 · 星と星が弾道で結ばれ幾何の星座となる',
+        style: '参考原作：星点连线构成的星座图形',
+        styleJa: '参考：星点を結んで描く星座の図形',
+        bgTint: '#0d1c3c',
+        intro(b) { b.setTarget(G.PF.w / 2, 148); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 148, 128, 44, .010);
+          const t = tier();
+          const pts = [5, 6, 7, 8][t];
+          /* 主造型：星点＋星点之间的等距连线弹，构成闭合星座 */
+          if (f % 92 === 0) P.constellation(T('starlight', {
+            x: b.x, y: b.y, points: pts, radius: 138,
+            a0: f * .006, n: 6, seg: 8,
+            speed: 128, starN: 6, r: 6, life: 12,
+            colors: ['gold', 'cyan', 'white', 'violet']
+          }));
+          /* Normal 起：星座中心一轮淡淡的内环 */
+          if (t >= 1 && f % 138 === 46) P.ring(T('starlight', {
+            x: b.x, y: b.y, n: 12, speed: 96, a0: -f * .005,
+            ripple: .02, r: 5, type: 'starpoint', color: 'white', life: 12
+          }));
+          /* Hard 起：一枚自机狙，从星座的顶点射出 */
+          if (t >= 2 && f % 184 === 92) P.fan(T('starlight', {
+            x: b.x, y: b.y - 120, n: 3, spread: .26, aim: true,
+            speed: 156, r: 5, type: 'starpoint', color: 'gold'
+          }));
+          /* Lunatic：第二重更小的星座反相叠加 */
+          if (t === 3 && f % 138 === 0) P.constellation(T('starlight', {
+            x: b.x, y: b.y, points: 6, radius: 82,
+            a0: -f * .009, n: 4, seg: 6, speed: 112,
+            starN: 5, r: 5, colors: ['violet', 'white'], life: 11
+          }));
+        }
+      },
+      {
+        name: '魔符「流星の雨」', jp: 'まふ・りゅうせいのあめ',
+        type: 'barrier', hp: 12000, timeout: 112,
+        declare: '「落ちる星も、星です。拾って、並べておきますの。」',
+        hint: '结界符卡 · 天顶坠落的流星雨分层加速',
+        hintJa: '結界符卡 · 天頂から降る流星が層ごとに加速する',
+        style: '参考原作：高速落星与彗尾弹（星符「银河」系）',
+        styleJa: '参考：高速の降星と彗星の尾（星符「銀河」系）',
+        bgTint: '#16244a',
+        intro(b) { b.setTarget(G.PF.w / 2, 150); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 150, 158, 52, .012);
+          const t = tier();
+          /* 主造型：等距间隔的流星自天顶坠落，加速留下彗尾 */
+          if (f % 22 === 0) {
+            const n = [3, 5, 7, 9][t];
+            for (let i = 0; i < n; i++) {
+              const x = 30 + (G.PF.w - 60) * (i / (n - 1));
+              for (let k = 0; k < 3; k++)
+                G.spawnBullet({ x: x + k * 6, y: -14 - k * 20,
+                  angle: Math.PI / 2, speed: 118 - k * 12,
+                  accel: 240, maxSpeed: 260,
+                  delay: k * .05, r: 7 - k, type: 'star',
+                  color: k === 0 ? 'white' : 'gold', life: 10 });
+            }
+          }
+          /* Normal 起：流星落点处炸开一圈星芒 */
+          if (t >= 1 && f % 88 === 44) P.star(T('starlight', {
+            x: b.x, y: b.y, n: 24, points: 6, speed: 146,
+            a0: f * .007, r: 6, type: 'starpoint', color: 'cyan', life: 12
+          }));
+          /* Hard 起： InterruptedException 般的「逆流星」自下而上 */
+          if (t >= 2 && f % 132 === 66) P.fan(T('starlight', {
+            x: b.x, y: G.PF.h - 24, n: 5, spread: .5, aim: true,
+            speed: 172, r: 5, type: 'starpoint', color: 'silver'
+          }));
+          /* Lunatic：两层交错的星型速度分布 */
+          if (t === 3 && f % 88 === 0) {
+            P.star(T('starlight', {
+              x: b.x, y: b.y, n: 30, points: 8, speed: 158,
+              a0: f * .008, r: 5, type: 'starpoint', color: 'gold', life: 12
+            }));
+            P.star(T('starlight', {
+              x: b.x, y: b.y, n: 24, points: 5, speed: 124,
+              a0: -f * .01, r: 5, type: 'starpoint', color: 'white', life: 12
+            }));
+          }
+        }
+      },
+      {
+        name: '終符「天球の反転」', jp: 'しゅうふ・てんきゅうのはんてん',
+        type: 'barrier', hp: 15000, timeout: 130, last: true,
+        declare: '「では、天球を裏返します。名前も、星も、すべて。」',
+        hint: '终符 · 天球逆转：外环与内环反向旋转的多段星图',
+        hintJa: '終符 · 天球反転。外輪と内輪が逆に回る多段の星図',
+        style: '参考原作：多段终符（永夜返）与旋转对称天球',
+        styleJa: '参考：多段終符（永夜返）と回転対称の天球',
+        bgTint: '#050e22',
+        intro(b) { b.setTarget(G.PF.w / 2, 145); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 145, 176, 56, .014);
+          const t = tier();
+          const seg = Math.floor(f / [300, 260, 220, 180][t]) % 4;
+          if (seg === 0) {
+            /* 一、星图展开：等距星环 */
+            if (f % 54 === 0) P.ring(T('starlight', {
+              x: b.x, y: b.y, n: 18, speed: 130, a0: f * .006,
+              ripple: .03, r: 6, type: 'starpoint',
+              colors: ['gold', 'cyan'], life: 12
+            }));
+          } else if (seg === 1) {
+            /* 二、轨道运行：椭圆行星带 */
+            if (f % 68 === 0) P.orbitBand(T('starlight', {
+              x: b.x, y: b.y, bands: t >= 2 ? 3 : 2, n: 14,
+              rx: 128, ry: 74, gap: 28, a0: -f * .007,
+              speed: 126, colors: ['cyan', 'silver', 'gold'],
+              type: 'big', r: 6, life: 12
+            }));
+          } else if (seg === 2) {
+            /* 三、星座连线：星点＋连线弹 */
+            if (f % 92 === 0) P.constellation(T('starlight', {
+              x: b.x, y: b.y, points: 7, radius: 146,
+              a0: f * .008, n: 5, seg: 7, speed: 132,
+              colors: ['gold', 'violet', 'white'], r: 6, life: 12
+            }));
+          } else {
+            /* 四、天球反转：内外多环逆向交错 */
+            if (f % 46 === 0) {
+              P.ring(T('starlight', {
+                x: b.x, y: b.y, n: 20, speed: 148, a0: f * .009,
+                ripple: .04, r: 6, type: 'starpoint', color: 'white', life: 12
+              }));
+              P.ring(T('starlight', {
+                x: b.x, y: b.y, n: 16, speed: 112, a0: -f * .011,
+                ripple: .03, r: 5, type: 'starpoint', color: 'violet', life: 12
+              }));
+              if (t >= 2) P.ring(T('starlight', {
+                x: b.x, y: b.y, n: 12, speed: 92, a0: f * .014,
+                ripple: .02, r: 5, type: 'starpoint', color: 'gold', life: 12
+              }));
+            }
+          }
+          /* Lunatic 全程叠一层反向的小星环 */
+          if (t === 3 && f % 92 === 46) P.ring(T('starlight', {
+            x: b.x, y: b.y, n: 10, speed: 164, a0: -f * .016,
+            r: 4, type: 'starpoint', color: 'cyan', life: 11
+          }));
+        }
+      }
+    ]
+  };
+
+  /* =========================================================
+   * 五面 BOSS：音無 楽々 —— 把名字唱成歌的无音乐师
+   * 语汇：五线谱激光、音符弹、和弦层、骤停、声波环、乐章回归。
+   * 参考原作：九十九弁弁「邪恶的五线谱」「Double Score」、
+   *           骚灵三姐妹的节拍型齐发。
+   * ========================================================= */
+  const rakuraku = {
+    id: 'rakuraku', name: '音無 楽々', reading: 'おとなし らくらく',
+    title: '名を歌う者', emblem: '音', music: 'boss5',
+    color: '#c6a0ff', sub: '#f0e6ff', hair: '#8f78c4', robe: '#3b2a68',
+    palette: ['#120a28', '#281448', '#4a2a80'], bg: 'music',
+    quote: '「書いた名は消える。けれど、歌った名は残りますの。」',
+    desc: '废弃剧场里，一位不再发声的乐师。星羅登记成星的名字，被她一首首唱成旋律收进乐谱；她说写下的字会被擦掉，唱出的歌却能在无人的剧场里一直回响。她已经把自己的名字唱进了歌里，所以本人反而无名。',
+    lore: '「音無」意指无声——她唱出的歌只有乐谱，没有声音。她认为符卡决斗中互报名字，本质是把名字唱给对方听；既然如此，把名字编成不会散的旋律，比写在札上更可靠。她的弹幕就是乐谱：五线是激光，音符是弹，休止符是骤停。',
+    maxSpells: 6,
+    spells: [
+      {
+        name: '楽符「五線の譜」', jp: 'がくふ・ごせんのふみ',
+        type: 'timeout', duration: 23, timeout: 23,
+        declare: '「五本の線を、引きましょう。そこが、名前の居場所ですの。」',
+        hint: '时限符卡 · 五道五线谱激光与沿线滑行的音符弹',
+        hintJa: '時限符卡 · 五本の五線レーザーと線を滑る音符弾',
+        style: '参考原作：九十九弁弁「樂符「邪惡的五線譜」」',
+        styleJa: '参考：九十九弁弁「楽符「邪悪な五線譜」」',
+        bgTint: '#120a28',
+        intro(b) { b.setTarget(G.PF.w / 2, 156); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 156, 90, 28, .006);
+          const t = tier();
+          const W = G.PF.w;
+          /* 五线谱固定架在画面上方：五道完全水平、自左向右横贯全屏的谱线。
+             高低速一律 5 道，不随难度增加；每 2 秒一波，激光实体持续 2 秒。
+             音符落点铺满整幅画面，与谱线位置同步。 */
+          const staffY = 128, gap = 18;   // 五道位于 y=92/110/128/146/164
+          if (f % 120 === 0) P.scoreLines(T('score', {
+            x: 4, y: staffY, lines: 5, gap,
+            n: 6 + t, speed: 148, a0: 0,
+            noteX0: 20, noteX1: W - 20,
+            warn: .6, laserLife: 2, width: 7,
+            colors: ['cyan', 'violet', 'gold', 'silver', 'pink'],
+            type: 'note', r: 6, life: 11, waveA: 8
+          }));
+          /* Normal 起：错开半拍补一层落下的音符，不增加谱线数量 */
+          if (t >= 1 && f % 120 === 60) P.scoreLines(T('score', {
+            x: 4, y: staffY, lines: 5, gap: 26, n: 5 + t,
+            speed: 128, a0: 0, noteX0: 20, noteX1: W - 20,
+            withLasers: false, colors: ['violet', 'cyan'],
+            type: 'note', r: 5, life: 11, waveA: 10
+          }));
+          /* 拨弦：五道竖激光每 4 秒一次，起点随玩家位置移动。
+             五条全部夹在画面内，且中间一条始终压在玩家当前的 x 上——
+             也就是说玩家一定处在某条激光的警告路径里，必须走位。 */
+          if (f % 240 === 0) {
+            const px = M.clamp(G.player ? G.player.x : W / 2, 12, W - 12);
+            const gapV = Math.min(118, (W - 60) / 4);
+            /* 以玩家为锚点：中间那条（i=2）必定正对玩家当前 x；其余向两侧展开，
+               越界的镜像夹回场内。五条都在屏幕内，且玩家永远在警告路径上。 */
+            for (let i = 0; i < 5; i++) {
+              const off = (i - 2) * gapV;
+              let x = px + off;
+              if (i !== 2 && (x < 28 || x > W - 28)) x = M.clamp(px - off, 28, W - 28);
+              x = M.clamp(x, 12, W - 12);
+              P.laser(T('score', {
+                x, y: staffY + 36, a0: Math.PI / 2, aim: false, noDiffAngle: true,
+                warn: .62, laserLife: 2, width: 8,
+                color: i % 2 ? 'gold' : 'white'
+              }));
+              for (let k = 0; k < 3; k++)
+                G.spawnBullet({ x, y: staffY + 36 + k * 24,
+                  angle: Math.PI / 2, speed: 156, delay: k * .07,
+                  r: 5, type: 'note', color: i % 2 ? 'gold' : 'white', life: 11 });
+            }
+          }
+          /* Hard 起：自机狙的「指挥棒」一音，错开帧 */
+          if (t >= 2 && f % 180 === 90) P.fan(T('score', {
+            x: b.x, y: b.y, n: 5 + t, spread: .5, aim: true,
+            speed: 164, r: 5, type: 'note', color: 'gold'
+          }));
+          /* Lunatic：只加密落下的音符，不增加谱线/竖激光条数 */
+          if (t === 3 && f % 120 === 30) P.scoreLines(T('score', {
+            x: 4, y: staffY, lines: 5, gap: 30, n: 6,
+            speed: 152, a0: 0, noteX0: 20, noteX1: W - 20,
+            withLasers: false, colors: ['pink', 'white'],
+            type: 'note', r: 5, life: 11, waveA: 12
+          }));
+        }
+      },
+      {
+        name: '音符「跳梁する譜」', jp: 'おんぷ・ちょうりょうするふみ',
+        type: 'timeout', duration: 24, timeout: 24,
+        declare: '「弾みますが、鳴りません。……譜に書いた音は、まだ音ではないのです。」',
+        hint: '时限符卡 · 音符先静止写在谱上，拍点一到才同时奏响',
+        hintJa: '時限符卡 · 音符は一度譜に書き留められ、拍で一斉に鳴る',
+        style: '参考原作：静默谱面＋拍点齐奏（时符 / 骚灵拍子），以「延迟起动」实现写谱→奏响',
+        styleJa: '参考：静かな譜面と拍点の一斉発射（時符 / 騒霊）、遅延起動で「書く→鳴る」を表現',
+        bgTint: '#1a1038',
+        intro(b) { b.setTarget(G.PF.w / 2, 152); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 152, 104, 32, .007);
+          const t = tier();
+          const W = G.PF.w, H = G.PF.h;
+          /* 机制：每小节先把一整行音符「写」在谱线上——用长 delay 冻结，
+             静止弹无判定；小节末的拍点让它们同时起速（奏响）。
+             玩家必须在静默期读谱走位，在奏响的一瞬穿过弹群。
+             这与任何现存的环/螺旋/激光阵都不同。 */
+          const bar = [180, 150, 126, 108][t];
+          const ph = f % bar;
+          const beatAt = Math.floor(bar * .78);
+          const noteDelay = (bar * .78) / 60;
+
+          if (ph === 0) {
+            const rows = [2, 3, 4, 5][t];
+            const cols = [7, 8, 9, 11][t];
+            for (let r = 0; r < rows; r++) {
+              const y = 130 + r * (H * .54 / Math.max(1, rows - 1));
+              for (let k = 0; k < cols; k++) {
+                const x = 28 + (W - 56) * (k / (cols - 1));
+                const aim = M.clamp((G.player ? G.player.x : W / 2) - x, -240, 240) / 1100;
+                G.spawnBullet({ x, y,
+                  angle: Math.PI / 2 + aim + Math.sin(k * 1.7 + r) * .05,
+                  speed: 138 + r * 7 + t * 4,
+                  delay: noteDelay + (k % 2) * .04,
+                  r: 6, type: 'note',
+                  color: (k + r) % 3 === 0 ? 'gold' : ((k + r) % 3 === 1 ? 'cyan' : 'violet'),
+                  life: 12 });
+              }
+            }
+          }
+          /* 拍点：一记自机狙的「指挥棒」落下，与整行音符同时奏响 */
+          if (ph === beatAt)
+            P.fan(T('score', {
+              x: b.x, y: b.y, n: [3, 5, 7, 9][t], spread: .4 + t * .05,
+              aim: true, speed: 168, r: 5, type: 'note', color: 'white'
+            }));
+          /* 静默期：沿谱线滑过一道无判定的反光，提示下一行将写在哪 */
+          if (t >= 1 && ph > 0 && ph % 22 === 0) {
+            const rows = [2, 3, 4, 5][t];
+            const y = 130 + (Math.floor(ph / 22) % rows) * (H * .54 / Math.max(1, rows - 1));
+            P.scoreLines(T('score', {
+              x: 4, y, lines: 1, gap: 0, n: 6, speed: 96, a0: 0,
+              noteX0: 20, noteX1: W - 20, withLasers: false, laserLife: 2,
+              colors: ['silver'], type: 'note', r: 4, life: 10
+            }));
+          }
+          /* Hard 起：反拍补写一行低音音符，用更短的 delay 错开奏响 */
+          if (t >= 2 && ph === Math.floor(bar * .38)) {
+            const y = H * .72;
+            for (let k = 0; k < 9; k++) {
+              const x = 40 + (W - 80) * (k / 8);
+              G.spawnBullet({ x, y, angle: Math.PI / 2, speed: 122,
+                delay: (bar * .40) / 60, r: 5, type: 'note',
+                color: k % 2 ? 'pink' : 'silver', life: 11 });
+            }
+          }
+          /* Lunatic：拍点后再补一圈从两侧收束的「余韵」 */
+          if (t === 3 && ph === beatAt + 6)
+            P.mirrorLine(T('score', {
+              x: W / 2, y: b.y + 40, n: 6, spread: 1.0, a0: Math.PI / 2,
+              axis: W / 2, color: 'violet', color2: 'gold',
+              type: 'note', r: 5, speed: 142, life: 11
+            }));
+        }
+      },
+      {
+        name: '弦符「和音の層」', jp: 'げんふ・わおんのそう',
+        type: 'barrier', hp: 11000, timeout: 106,
+        declare: '「三つの音を重ねます。重なった所が、消えない名前ですの。」',
+        hint: '结界符卡 · 三层和弦环错相叠加',
+        hintJa: '結界符卡 · 三層の和音環が位相をずらして重なる',
+        style: '参考原作：和弦层叠与旋转花环（弦楽「嵐のアンサンブル」）',
+        styleJa: '参考：和音の層と回転花環（弦楽「嵐のアンサンブル」）',
+        bgTint: '#201448',
+        intro(b) { b.setTarget(G.PF.w / 2, 150); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 150, 132, 44, .010);
+          const t = tier();
+          const layers = [1, 2, 3, 4][t];
+          /* 主造型：三层同心和弦环，层间错开半音（相位） */
+          if (f % 72 === 0) {
+            const k = Math.floor(f / 72);
+            P.multiRing(T('score', {
+              x: b.x, y: b.y, n: 18, layers,
+              speedStep: 24, nStep: 3, rotStep: .13,
+              a0: k * .16 * (t === 3 ? -1 : 1), speed: 124,
+              colors: ['violet', 'cyan', 'gold', 'pink'],
+              type: 'note', r: 6, life: 12
+            }));
+          }
+          /* Normal 起：和弦之间的「共鸣」——一圈细小的白环 */
+          if (t >= 1 && f % 108 === 36) P.ring(T('score', {
+            x: b.x, y: b.y, n: 14, speed: 92, a0: -f * .005,
+            ripple: .02, r: 4, type: 'note', color: 'white', life: 12
+          }));
+          /* Hard 起：拨弦式的自机狙五连 */
+          if (t >= 2 && f % 144 === 72) P.fan(T('score', {
+            x: b.x, y: b.y, n: 5, spread: .5, aim: true,
+            speed: 158, r: 5, type: 'note', color: 'gold'
+          }));
+          /* Lunatic：第四层反向快速和弦，与外层构成对位 */
+          if (t === 3 && f % 72 === 36) P.multiRing(T('score', {
+            x: b.x, y: b.y, n: 12, layers: 2, speedStep: 30,
+            a0: -f * .011, speed: 148,
+            colors: ['pink', 'white'], type: 'note', r: 5, life: 11
+          }));
+        }
+      },
+      {
+        name: '拍符「休止の間」', jp: 'はくふ・きゅうしのま',
+        type: 'barrier', hp: 12000, timeout: 108,
+        declare: '「二拍、休みます。……鳴らない間も、譜面の内ですの。」',
+        hint: '结界符卡 · 休止期间音符静止写在场上，拍点一到全部奏响',
+        hintJa: '結界符卡 · 休止中は音符が譜面に書き込まれ、拍で一斉に鳴る',
+        style: '参考原作：骚灵三姐妹的节拍齐发 + 时停型齐射（静止弹一次性激活）',
+        styleJa: '参考：騒霊三姉妹の拍子一斉発射＋時停型の一斉起動',
+        bgTint: '#2a0e44',
+        intro(b) { b.setTarget(G.PF.w / 2, 148); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 148, 118, 34, .008);
+          const t = tier();
+          const cycle = [126, 108, 90, 72][t];
+          const beat = Math.floor(f / cycle);
+          const ph = f % cycle;
+          const hold = Math.floor(cycle * .46);   // 前半拍是「写在谱上的静止音符」
+
+          /* 主造型：休止期把音符弹一颗颗写在场上的谱线位置（delay 冻结），
+             拍点一到统一激活——静止本身就是威胁，玩家必须提前找位。 */
+          if (ph === 0) {
+            const rows = [2, 3, 3, 4][t];
+            const per = [6, 7, 8, 9][t];
+            for (let r = 0; r < rows; r++)
+              for (let k = 0; k < per; k++) {
+                const x = 30 + (G.PF.w - 60) * (k / (per - 1));
+                const y = 80 + r * 64;
+                G.spawnBullet({ x, y,
+                  angle: Math.PI / 2 + (x - G.PF.w / 2) / 1400,
+                  speed: 158 + r * 8 + t * 6,
+                  delay: Math.floor(hold / 60 * .92),
+                  r: 6, type: 'note',
+                  color: (k + r) % 3 === 0 ? 'gold' : ((k + r) % 3 === 1 ? 'cyan' : 'violet'),
+                  life: 11 });
+              }
+          }
+          /* 拍点：先落一记强拍环，把所有静止音符一并「奏响」 */
+          if (ph === hold) {
+            P.ring(T('score', {
+              x: b.x, y: b.y, n: 14 + t * 2, speed: 150 + t * 8,
+              a0: beat * .21, ripple: .03, r: 6, type: 'note',
+              color: beat % 2 ? 'cyan' : 'gold', life: 12
+            }));
+            /* 全难度都有的自机狙：让拍点本身也具威胁 */
+            P.fan(T('score', {
+              x: b.x, y: b.y, n: [3, 5, 7, 9][t], spread: .34 + t * .06,
+              aim: true, speed: 164 + t * 6, r: 5, type: 'note', color: 'white'
+            }));
+          }
+          /* 休止期的弱拍：从谱线边缘滑下的小音符，避免空场 */
+          if (ph > 0 && ph % 18 === 0) P.scoreLines(T('score', {
+            x: b.x, y: b.y + 30, lines: t >= 2 ? 3 : 2, gap: 30,
+            n: 5, speed: 126, withLasers: false,
+            colors: ['violet', 'silver'], type: 'note', r: 5, life: 11
+          }));
+          /* Hard 起：反拍补一层反向环，Lunatic 再加一层快环 */
+          if (t >= 2 && ph === Math.floor(hold * .7))
+            P.ring(T('score', {
+              x: b.x, y: b.y, n: 16, speed: 132,
+              a0: -beat * .24, ripple: .04, r: 5,
+              type: 'note', color: 'silver', life: 11
+            }));
+          if (t === 3 && ph === Math.floor(hold * .35))
+            P.ring(T('score', {
+              x: b.x, y: b.y, n: 20, speed: 172,
+              a0: beat * .3, ripple: .05, r: 4,
+              type: 'note', color: 'violet', life: 11
+            }));
+        }
+      },
+      {
+        name: '声符「波紋の歌」', jp: 'せいふ・はもんのうた',
+        type: 'barrier', hp: 13000, timeout: 112,
+        declare: '「声は、波になります。広がって、名前を運びますの。」',
+        hint: '结界符卡 · 一圈圈同心声波由内向外推',
+        hintJa: '結界符卡 · 同心の音波が内から外へ押し広がる',
+        style: '参考原作：同心波纹与月面波纹（波符「月面波纹」）',
+        styleJa: '参考：同心の波紋（波符「月面波紋」）',
+        bgTint: '#160c38',
+        intro(b) { b.setTarget(G.PF.w / 2, 146); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 146, 142, 46, .011);
+          const t = tier();
+          /* 主造型：多重同心波纹，从中心一圈圈荡开 */
+          if (f % 56 === 0) P.waveRings(T('score', {
+            x: b.x, y: b.y, n: 20 + t * 2, rings: [2, 3, 4, 5][t],
+            r0: 18, gap: 32, speed: 118,
+            ringDelay: .08, accel: 180,
+            colors: ['cyan', 'violet', 'gold', 'white'],
+            type: 'note', r: 6, life: 12
+          }));
+          /* Normal 起：波与波之间补一层静止的共鸣环 */
+          if (t >= 1 && f % 112 === 56) P.ring(T('score', {
+            x: b.x, y: b.y, n: 14, speed: 88, a0: -f * .005,
+            ripple: .02, r: 5, type: 'note', color: 'white', life: 12
+          }));
+          /* Hard 起：波前的一记自机狙 */
+          if (t >= 2 && f % 168 === 84) P.fan(T('score', {
+            x: b.x, y: b.y, n: 5, spread: .44, aim: true,
+            speed: 164, r: 5, type: 'note', color: 'gold'
+          }));
+          /* Lunatic：反向收缩的第二组波纹，与外推波干涉 */
+          if (t === 3 && f % 112 === 0) P.waveRings(T('score', {
+            x: b.x, y: b.y, n: 18, rings: 3, r0: 220, gap: -32,
+            speed: 96, outSpeed: false, ringDelay: .07, accel: 120,
+            colors: ['pink', 'violet'], type: 'note', r: 5, life: 11
+          }));
+        }
+      },
+      {
+        name: '終符「無音の楽章」', jp: 'しゅうふ・むおんのがくしょう',
+        type: 'barrier', hp: 16000, timeout: 132, last: true,
+        declare: '「最後は、無音です。鳴った音を、全部思い出してください。」',
+        hint: '终符 · 四段乐章：谱→音符→和弦→无声回归',
+        hintJa: '終符 · 四つの楽章。譜→音符→和音→無音への回帰',
+        style: '参考原作：多段终符（永夜返）与乐章式段落推进',
+        styleJa: '参考：多段終符（永夜返）と楽章式の進行',
+        bgTint: '#0a0620',
+        intro(b) { b.setTarget(G.PF.w / 2, 145); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 145, 176, 56, .014);
+          const t = tier();
+          const seg = Math.floor(f / [320, 270, 230, 190][t]) % 4;
+          if (seg === 0) {
+            /* 一、谱：五线谱激光 + 持续落下的音符 */
+            if (f % 72 === 0) P.scoreLines(T('score', {
+              x: b.x, y: b.y, lines: 5, gap: 24, n: 9 + t * 2,
+              speed: 140, warn: .62, life: 1.2,
+              colors: ['cyan', 'violet', 'gold'], type: 'note', r: 6, life: 12, waveA: 10
+            }));
+            if (f % 36 === 18) P.scoreLines(T('score', {
+              x: b.x, y: b.y + 40, lines: 3, gap: 30, n: 6 + t,
+              speed: 128, withLasers: false, colors: ['silver', 'cyan'],
+              type: 'note', r: 5, life: 11
+            }));
+          } else if (seg === 1) {
+            /* 二、音符：跳跃的节奏，八分/十六分交替 */
+            if (f % 24 === 0) for (let i = 0; i < [7, 9, 11, 13][t]; i++)
+              G.spawnBullet({ x: b.x + (i - 6) * 20, y: b.y,
+                angle: Math.PI / 2 + (i - 6) * .13, speed: 140 + i * 3,
+                wave: 1, waveF: 3.4, waveA: 24,
+                r: 5, type: 'note', color: i % 2 ? 'gold' : 'cyan', life: 11 });
+            if (t >= 1 && f % 48 === 12)
+              P.fan(T('score', { x: b.x, y: b.y, n: 5 + t, spread: .5,
+                aim: true, speed: 164, r: 5, type: 'note', color: 'white' }));
+          } else if (seg === 2) {
+            /* 三、和弦：三层环叠加 + 反拍的小环 */
+            if (f % 56 === 0) P.multiRing(T('score', {
+              x: b.x, y: b.y, n: 18, layers: t >= 2 ? 3 : 2,
+              speedStep: 26, nStep: 3, a0: f * .008, speed: 132,
+              colors: ['violet', 'cyan', 'gold'], type: 'note', r: 6, life: 12
+            }));
+            if (f % 56 === 28) P.ring(T('score', {
+              x: b.x, y: b.y, n: 14, speed: 108, a0: -f * .01,
+              ripple: .03, r: 5, type: 'note', color: 'silver', life: 11
+            }));
+          } else {
+            /* 四、无声回归：全静两拍后，先前所有音符同时回归成环 */
+            if (f % 96 === 0) {
+              P.ring(T('score', {
+                x: b.x, y: b.y, n: 20, speed: 152, a0: -f * .01,
+                ripple: .04, r: 6, type: 'note', color: 'white', life: 12
+              }));
+              P.ring(T('score', {
+                x: b.x, y: b.y, n: 16, speed: 108, a0: f * .009,
+                ripple: .03, r: 5, type: 'note', color: 'violet', life: 12
+              }));
+              if (t >= 2) P.scoreLines(T('score', {
+                x: b.x, y: b.y, lines: 5, gap: 22, n: 8,
+                speed: 152, withLasers: false, a0: Math.PI,
+                colors: ['pink', 'white'], type: 'note', r: 5, life: 11, waveA: 12
+              }));
+              /* 与 4 号符呼应：终章也把音符先写在谱上，半拍后一起奏响 */
+              if (t >= 1) {
+                const per = [0, 6, 8, 10][t];
+                for (let k = 0; k < per; k++) {
+                  const x = 40 + (G.PF.w - 80) * (k / (per - 1));
+                  G.spawnBullet({ x, y: b.y + 60,
+                    angle: Math.PI / 2 + (x - G.PF.w / 2) / 1200,
+                    speed: 162, delay: .42, r: 5, type: 'note',
+                    color: k % 2 ? 'pink' : 'white', life: 11 });
+                }
+              }
+              if (t >= 2) P.fan(T('score', {
+                x: b.x, y: b.y, n: 7, spread: .46, aim: true,
+                speed: 166, r: 5, type: 'note', color: 'white'
+              }));
+            }
+          }
+          /* Lunatic 全程叠一层反向小音符环 */
+          if (t === 3 && f % 96 === 48) P.ring(T('score', {
+            x: b.x, y: b.y, n: 12, speed: 166, a0: -f * .014,
+            r: 4, type: 'note', color: 'gold', life: 11
+          }));
+        }
+      }
+    ]
+  };
+
+  /* =========================================================
+   * 六面 BOSS（异变根源）：無名の守人 —— 想让一切回到无名的守护者
+   * 语汇：曼荼罗、封印柱、抹名的黑札、阴阳逆极、无名方阵、结界终焉。
+   * 与第三面祭篝燎同源却方向相反：燎替人记住名字，守人要把名字收回无名。
+   * 参考原作：寅丸星「焦土曼荼罗」、灵梦「八方鬼缚阵」、多段终符。
+   * ========================================================= */
+  const nameless = {
+    id: 'nameless', name: '無名の守人', reading: 'むめいのもりびと',
+    title: '結界の裡に在る者', emblem: '無', music: 'boss6',
+    color: '#b7b0d8', sub: '#e8e6f5', hair: '#4a4668', robe: '#26223e',
+    palette: ['#080610', '#171426', '#2e2848'], bg: 'void',
+    quote: '「名があれば、違いが生まれる。違いが、争いを生む。……だから、名を返す。」',
+    desc: '结界最深处、连光都懒得照进来的空白之间。她原本是替结界看管「尚未被使用的名字」的守人；看多了名字带来的争执，便想把所有名字收回无名。她连自己的名字也一并抹去了，因此符卡全部「無題」——因为一旦题名，就等于承认自己有名字。',
+    lore: '她与第三面的祭篝燎同源：燎在无人来时替人把名字读下去，守人却认为读名字本身就是错的。残札从祭火飘出后，一层层被登记成星、唱成歌，最后都回到她这里，被收进无名。真正的异变不是符卡被改写，而是「被记住」这件事被她判了罪。',
+    maxSpells: 7,
+    spells: [
+      /* 1 消名：笔首沿方框写字，沿途留下飞刀——「写上去又抹掉」 */
+      {
+        name: '無題「還魂の盤」', jp: 'むだい・かんごんのばん',
+        type: 'timeout', duration: 24, timeout: 24,
+        declare: '「時計の盤に、名を戻します。……針は、止まりませんの。」',
+        hint: '时限符卡 · 放射光带构成钟面，紫银蝶弹沿圆周分段爬升',
+        hintJa: '時限符卡 · 放射光帯が時計盤を作り、紫銀の蝶弾が円周を昇る',
+        style: '参考原作：西行寺幽幽子「反魂蝶」的时钟魔术（光带＋双色蝶弹绕圈）',
+        styleJa: '参考：西行寺幽幽子「反魂蝶」の時計の魔術（光帯＋二色の蝶弾）',
+        bgTint: '#080610',
+        intro(b) { b.setTarget(G.PF.w / 2, 150); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 150, 96, 30, .006);
+          const t = tier();
+          const cycle = [96, 82, 68, 56][t];
+          /* 主造型：光环钟面——放射激光当刻度，紫银蝶弹分波沿圆周爬升。
+             每波整体旋转一点，像钟面指针一圈圈拨动。 */
+          if (f % cycle === 0) {
+            const k = Math.floor(f / cycle);
+            P.haloDial(T('silence', {
+              x: b.x, y: b.y,
+              spokes: [10, 12, 14, 16][t],
+              arc: [6, 7, 8, 9][t],
+              radius: 128 + t * 8, spreadR: 62,
+              a0: k * .21, tilt: .1, curve: .18,
+              stepDelay: .026, speed: 132 + t * 8,
+              laserLife: 1.5, width: 5,
+              colors: ['violet', 'silver'],
+              type: 'butterfly', r: 6, life: 12
+            }));
+          }
+          /* Normal 起：反向的第二圈，紫银位置对调，两环像齿轮咬合 */
+          if (t >= 1 && f % (cycle * 2) === cycle) {
+            P.haloDial(T('silence', {
+              x: b.x, y: b.y, spokes: 10, arc: 6,
+              radius: 92, spreadR: 48,
+              a0: -f * .009, tilt: -.12, curve: -.2,
+              stepDelay: .022, speed: 150,
+              laserLife: 1.2, width: 4,
+              colors: ['silver', 'violet'],
+              type: 'butterfly', r: 5, life: 11
+            }));
+          }
+          /* Hard 起：同一光环机构再叠一圈逆向「时针」环补强威胁 */
+          if (t >= 2 && f % 102 === 51)
+            P.haloDial(T('silence', {
+              x: b.x, y: b.y, spokes: 8, arc: 5,
+              radius: 110, spreadR: 36,
+              a0: -f * .011, tilt: -.1, curve: -.2,
+              stepDelay: .02, speed: 160,
+              withLasers: false, colors: ['white', 'violet'],
+              type: 'butterfly', r: 5, life: 11
+            }));
+          /* Lunatic：第三圈高速小蝶环 */
+          if (t === 3 && f % (cycle * 2) === cycle + 28)
+            P.haloDial(T('silence', {
+              x: b.x, y: b.y, spokes: 12, arc: 5,
+              radius: 188, spreadR: 40,
+              a0: f * .014, tilt: .14, curve: .22,
+              speed: 172, stepDelay: .02,
+              withLasers: false, colors: ['white', 'violet'],
+              type: 'butterfly', r: 4, life: 11
+            }));
+        }
+      },
+
+      /* 2 名の残影：脉冲网格——全场的名字格子由内而外依次点亮 */
+      {
+        name: '無題「名の残影」', jp: 'むだい・なのざんえい',
+        type: 'barrier', hp: 11800, timeout: 108,
+        declare: '「名前を、格子に仕舞いました。……順に、呼びますの。」',
+        hint: '结界符卡 · 网格节点按波纹顺序依次发射',
+        hintJa: '結界符卡 · 格子の節点が波紋の順に次々と放つ',
+        style: '参考原作：八云紫「波与粒的境界」的波纹式扩散',
+        styleJa: '参考：八雲紫「波と粒の境界」の波紋状の拡がり',
+        bgTint: '#100c1e',
+        intro(b) { b.setTarget(G.PF.w / 2, 150); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 150, 108, 34, .008);
+          const t = tier();
+          if (f % 72 === 0) P.pulseGrid(T('silence', {
+            x: G.PF.w / 2, y: G.PF.h * .42,
+            cols: [7, 9, 11, 13][t], rows: [4, 5, 6, 7][t],
+            waveSpeed: 460, gradient: .35,
+            spin: (Math.floor(f / 72) % 2) ? .6 : -.6,
+            speed: 138 + t * 6, a0: f * .003,
+            type: 'rune', color: 'violet', life: 12
+          }));
+          if (t >= 2 && f % 144 === 72) P.pulseGrid(T('silence', {
+            x: G.PF.w / 2, y: G.PF.h * .6,
+            cols: 10, rows: 4, waveSpeed: 620, gradient: .5,
+            speed: 156, a0: -f * .005,
+            type: 'rune', color: 'silver', life: 11
+          }));
+        }
+      },
+
+      /* 3 虚空の縁：盘蛇螺旋——弹如蛇从身上环绕，包裹整屏后散开 */
+      {
+        name: '無題「虚空の縁」', jp: 'むだい・きょくうのふち',
+        type: 'barrier', hp: 12600, timeout: 112,
+        declare: '「名を、輪にして巻きます。……解ける時が、来るまで。」',
+        hint: '结界符卡 · 盘蛇螺旋自BoSS环绕而出，包裹整屏后散开',
+        hintJa: '結界符卡 · 蛇のように螺旋が広がり、画面を包んで解ける',
+        style: '参考原作：洩矢诹访子「蛙狩」的盘蛇螺旋包围弹幕',
+        styleJa: '参考：洩矢諏訪子「蛙狩」の蛇のように廻る螺旋',
+        bgTint: '#0c0a18',
+        intro(b) { b.setTarget(G.PF.w / 2, 150); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 150, 132, 44, .010);
+          const t = tier();
+          const cycle = [104, 88, 74, 62][t];
+          /* 主造型：多臂盘蛇螺旋——从 Boss 身边一圈圈向外舒展，
+             螺旋半径不断增大，覆盖整屏；dir 逐波反向。 */
+          if (f % cycle === 0) {
+            const k = Math.floor(f / cycle);
+            P.coilSerpent(T('silence', {
+              x: b.x, y: b.y,
+              arms: [3, 4, 5, 6][t], per: [12, 14, 16, 18][t],
+              radius: 26, grow: 12, coils: 2.2,
+              a0: k * .3, dir: k % 2 ? -1 : 1,
+              curve: .04, stepDelay: .026,
+              speed: 130 + t * 6,
+              colors: ['violet', 'silver'],
+              type: 'orb', r: 6, life: 13
+            }));
+          }
+          /* Normal 起：第二组反向小螺旋，与主螺旋交错成双蛇 */
+          if (t >= 1 && f % (cycle * 2) === cycle) {
+            P.coilSerpent(T('silence', {
+              x: b.x, y: b.y, arms: 3, per: 12,
+              radius: 18, grow: 9, coils: 1.8,
+              a0: -f * .008, dir: -1, curve: -.06,
+              stepDelay: .022, speed: 148,
+              colors: ['silver', 'ink'],
+              type: 'orb', r: 5, life: 12
+            }));
+          }
+          /* Lunatic：第三组更密的螺旋，填满外圈 */
+          if (t === 3 && f % (cycle * 2) === cycle + 30) {
+            P.coilSerpent(T('silence', {
+              x: b.x, y: b.y, arms: 5, per: 16,
+              radius: 40, grow: 13, coils: 2.6,
+              a0: f * .011, dir: 1, curve: .05,
+              stepDelay: .02, speed: 162,
+              colors: ['white', 'violet'],
+              type: 'orb', r: 4, life: 11
+            }));
+          }
+        }
+      },
+
+      /* 4 書き損じの反響：坍缩星——卫星留下追踪星弹，无安定点 */
+      {
+        name: '無題「書き損じの反響」', jp: 'むだい・かきそじのはんきょう',
+        type: 'timeout', duration: 25, timeout: 25,
+        declare: '「書いた名は、追って来ます。……其処に居る筈もないのに。」',
+        hint: '时限符卡 · 卫星留下会追踪自机的星弹，站着不动必被追上',
+        hintJa: '時限符卡 · 星弾が自機を追う。動かなければ、必ず追いつく',
+        style: '参考原作：魔理沙「闭符大坍缩」的旋转卫星＋接近变色追踪弹',
+        styleJa: '参考：魔理沙「閉符大坍縮」の回転使魔＋接近して追尾する弾',
+        bgTint: '#14102a',
+        intro(b) { b.setTarget(G.PF.w / 2, 152); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 152, 122, 42, .011);
+          const t = tier();
+          const cycle = [82, 70, 58, 48][t];
+          /* 主造型：卫星绕身旋转留下星弹轨迹，星弹带追踪——
+             玩家一旦站定就会被追上，必须持续移动。 */
+          if (f % cycle === 0) {
+            const k = Math.floor(f / cycle);
+            P.collapseOrb(T('silence', {
+              x: b.x, y: b.y,
+              satellites: [3, 4, 5, 6][t], per: [6, 7, 8, 9][t],
+              radius: 108 + t * 8, satR: 28,
+              a0: k * .3, speed: 126 + t * 6,
+              homing: 1.5 + t * .2, homingT: 1.6,
+              curve: .06, stepDelay: .035,
+              bulkSpeed: 116, bulkSplit: [8, 10, 12, 14][t], bulkSplitT: 1.05,
+              colors: ['silver', 'violet'], bulkColor: 'ink',
+              type: 'starpoint', r: 6, life: 12
+            }));
+          }
+          /* Normal 起：反向旋转的第二组卫星，追踪更短更急 */
+          if (t >= 1 && f % (cycle * 2) === cycle) {
+            P.collapseOrb(T('silence', {
+              x: b.x, y: b.y, satellites: 4, per: 6,
+              radius: 74, satR: 22, a0: -f * .008,
+              speed: 148, homing: 2.1, homingT: 1.2,
+              curve: -.08, stepDelay: .03,
+              withBulk: false,
+              colors: ['violet', 'white'],
+              type: 'starpoint', r: 5, life: 11
+            }));
+          }
+          /* Lunatic：第三组高速小卫星，进一步压缩安全空间 */
+          if (t === 3 && f % (cycle * 2) === cycle + 24) {
+            P.collapseOrb(T('silence', {
+              x: b.x, y: b.y, satellites: 5, per: 7,
+              radius: 150, satR: 20, a0: f * .012,
+              speed: 166, homing: 2.4, homingT: 1.0,
+              withBulk: false,
+              colors: ['white', 'ink'],
+              type: 'starpoint', r: 4, life: 11
+            }));
+          }
+        }
+      },
+
+      /* 5 呼ばれない名：永动喷口——无名玉自动从巡游喷口涌出 */
+      {
+        name: '無題「呼ばれない名」', jp: 'むだい・よばれないな',
+        type: 'barrier', hp: 13200, timeout: 116,
+        declare: '「呼ばれない名は、天から降ります。……留める事も、出来ませんの。」',
+        hint: '结界符卡 · 天上巡游的喷口持续落下无名玉',
+        hintJa: '結界符卡 · 天を巡る噴口が無名の玉を降らせる',
+        style: '参考原作：八云紫「第一种永动机关」的自动弹幕',
+        styleJa: '参考：八雲紫「第一种永動機関」の自動弾幕',
+        bgTint: '#0a0816',
+        intro(b) { b.setTarget(G.PF.w / 2, 146); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 146, 142, 48, .011);
+          const t = tier();
+          /* 喷口固定在画面上方横向巡游，无名玉从天上落下；
+             间隔较原来拉长约 1.33 倍（发射速率 0.75 倍）。 */
+          if (f % 40 === 0) P.autoFountain(T('silence', {
+            x: G.PF.w / 2, y: 44, jets: [4, 5, 6, 8][t],
+            radius: 120 + t * 12, phase: f * .004,
+            n: [3, 4, 5, 6][t], spread: .18,
+            stepDelay: .04, curve: .12,
+            speed: 134 + t * 6,
+            type: 'orb', color: 'silver', life: 12,
+            dropFromTop: true
+          }));
+          if (f % 80 === 40) P.autoFountain(T('silence', {
+            x: G.PF.w / 2, y: 30, jets: [3, 4, 5, 6][t], radius: 76,
+            phase: -f * .006, n: 4, spread: .2,
+            speed: 154, type: 'rune', color: 'violet', life: 11,
+            dropFromTop: true
+          }));
+          if (t >= 2 && f % 120 === 20) P.autoFountain(T('silence', {
+            x: G.PF.w / 2, y: 52, jets: 5, radius: 170,
+            phase: f * .009, n: 4, spread: .15,
+            speed: 168, type: 'orb', color: 'white', life: 11,
+            dropFromTop: true
+          }));
+        }
+      },
+
+      /* 6 千の無名：形变——弹在飞行中途变成不同字形 */
+      {
+        name: '無題「千の無名」', jp: 'むだい・せんのむめい',
+        type: 'barrier', hp: 15000, timeout: 120,
+        declare: '「四隅の式が、交わる所で名を呼びます。……十文字に、鳴りますの。」',
+        hint: '结界符卡 · 四角式神抵达交点时炸开十字弹',
+        hintJa: '結界符卡 · 四隅の式が交点で十文字に弾ける',
+        style: '参考原作：交叉式神触发弹幕（稗田阿求／天邪鬼十字）',
+        styleJa: '参考：交差する式神が引き金になる弾幕',
+        bgTint: '#120e24',
+        intro(b) { b.setTarget(G.PF.w / 2, 144); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 144, 158, 54, .013);
+          const t = tier();
+          if (f % 42 === 0) P.crossTrigger(T('silence', {
+            x: b.x, y: b.y, n: [6, 8, 10, 12][t],
+            rays: [5, 6, 7, 8][t], radius: 240,
+            a0: f * .006, splitT: [.6, .5, .42, .34][t],
+            curve: .06, accel: 90,
+            speed: 132 + t * 6,
+            type: 'big', seedType: 'star',
+            color: 'violet', color2: 'white',
+            r: 6, life: 12
+          }));
+          if (t >= 1 && f % 84 === 42) P.crossTrigger(T('silence', {
+            x: b.x, y: b.y, n: 6, rays: 7, radius: 170,
+            a0: -f * .009, splitT: .4,
+            curve: -.1, speed: 156,
+            type: 'big', seedType: 'starpoint',
+            color: 'ink', color2: 'silver',
+            r: 5, life: 11
+          }));
+        }
+      },
+
+      /* 7 結界の忘却：先兆齐射——每波先预告位置1秒，再逐颗乱射，
+         5 秒内发完；满屏弹全部出屏销毁后才生成下一波。 */
+      {
+        name: '無題「結界の忘却」', jp: 'むだい・けっかいのぼうきゃく',
+        type: 'barrier', hp: 21000, timeout: 150, last: true,
+        declare: '「先に、場所を告げます。……それから、一斉に、parade ですの。」',
+        hint: '终符 · 预告1秒→5秒内逐颗乱射→全弹出屏后换下一波',
+        hintJa: '終符 · 1秒予告→5秒で乱射→全弾が消えて次の波',
+        style: '参考原作：先兆预告型弹幕（位置先显形再发射）与旋律曲线齐射',
+        styleJa: '参考：予告型弾幕と旋律曲線の一斉発射',
+        bgTint: '#04030a',
+        intro(b) { b.setTarget(G.PF.w / 2, 145); },
+        script(b, f) {
+          drift(b, f, G.PF.w / 2, 145, 176, 58, .015);
+          const t = tier();
+          /* 状态机：wave=当前波序号；pending=本波是否已发出。
+             只有在场弹全部销毁（出屏）后，才发下一波。 */
+          if (b._w7 === undefined) { b._w7 = 0; b._w7Pending = false; }
+          const alive = G.bullets.length;
+          if (!b._w7Pending || alive === 0) {
+            const w = b._w7;
+            const ratio = [[3, 2], [5, 4], [7, 6]][w % 3];
+            P.heraldSalvo(T('silence', {
+              x: G.PF.w / 2, y: G.PF.h * .42,
+              freqA: ratio[0], freqB: ratio[1],
+              phase: w * .27,
+              rx: 290 + (w % 3) * 8, ry: 220 + (w % 3) * 8,
+              /* 弹量四档精确 1:2:3:4（以 Normal 128 发为 2 份基准）；
+                 速度约为原来的 3 倍（Normal 基准 96→约 300）。 */
+              exactCount: [64, 128, 192, 256][t],
+              speed: 300 + t * 12 + (w % 3) * 10,
+              warnT: 1.0, spanT: 3.0,          // 1 秒预告 + 3 秒逐颗＝4 秒内发完
+              aimBias: .88, aimJitter: .22,    // 朝玩家偏转，差距越大偏越多，带随机范围
+              colors: [
+                ['violet', 'silver'],
+                ['silver', 'ink', 'white'],
+                ['white', 'violet', 'silver', 'ink']
+              ][w % 3],
+              type: 'starpoint', r: 5, life: 9   // 出屏即销毁，寿命兜底
+            }));
+            b._w7Pending = true;
+            b._w7++;
+          }
+        }
+      }
+    ]
+  };
+
+  B.list = [chiyo, honoka, ryou, seira, rakuraku, nameless];
   B.get = i => B.list[i];
 })();

@@ -57,7 +57,7 @@
     S({
       name: '钱符「下次一定省赛钱」', jp: 'せんふ・つぎはけっさいせん', glyph: '銭', color: 'amber',
       cat: 'line', catZh: '成长／扇形', catJa: '成長／扇型',
-      accLabel: '易', accLabelJa: '易', dps: 800,
+      accLabel: '易', accLabelJa: '易', dps: 2100,
       desc: '高速时一条直线发射不断变大的赛钱；低速时改为扇形发射一圈大小不变的赛钱。',
       descJa: '高速では真っ直ぐに育つ賽銭、低速では大きさの変わらぬ賽銭を扇状に撒く。',
       kindZh: '成长赛钱 / 扇形赛钱', kindJa: '育つ賽銭 / 扇の賽銭',

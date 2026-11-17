@@ -5,7 +5,7 @@
 (function () {
   const G = window.G = {
     W: 1200, H: 800,
-    PF: { x: 44, y: 36, w: 680, h: 728 },   // 弹幕游戏区
+    PF: { x: 44, y: 36, w: 680, h: 728, topLimit: 120 },   // 弹幕游戏区
     HUD: { x: 744, y: 36, w: 412, h: 728 }, // 右侧状态栏
     TAU: Math.PI * 2,
     state: 'title',     // title|select|config|story|playing|paused|result|gallery
@@ -99,7 +99,10 @@
     butterfly: { rot: true, offset: HP }, star: { rot: true, offset: HP },
     orb: { rot: false, offset: 0 }, big: { rot: false, offset: 0 },
     small: { rot: false, offset: 0 }, shot: { rot: false, offset: 0 },
-    ink: { rot: false, offset: 0 }, ring: { rot: false, offset: 0 }
+    ink: { rot: false, offset: 0 }, ring: { rot: false, offset: 0 },
+    /* 第四～六面：星点 / 音符 / 符印，均无方向性 */
+    starpoint: { rot: false, offset: 0 }, note: { rot: false, offset: 0 },
+    rune: { rot: false, offset: 0 }, scale: { rot: false, offset: 0 }
   };
   G.spriteDir = type => G.SPRITE_DIR[type] || { rot: false, offset: 0 };
 
@@ -143,7 +146,8 @@
       speed: 0, accel: 0, maxSpeed: 0, minSpeed: 0, homing: 0, homingT: 0,
       bounce: 0, split: 0, splitN: 0, splitT: 0, fadeIn: 0, alpha: 1,
       delay: 0, delayMax: 0, waitVx: 0, waitVy: 0, wave: 0, waveF: 0, waveA: 0,
-      scale: 1, dmgScale: 1, tag: '', data: null, rotToVel: false, spinT: 0
+      scale: 1, dmgScale: 1, tag: '', data: null, rotToVel: false, spinT: 0,
+      aimBias: 0, aimJitter: 0, aimBaseAngle: 0   // 发射瞬间朝自机偏转（先兆齐射）
     };
   }
   G.spawnBullet = function (o) {
@@ -374,6 +378,50 @@
         coreDot(.20, .85);
         break;
       }
+      case 'starpoint': {
+        /* 星点：四角星芒 + 亮芯，星图符卡的「登记星」 */
+        g.fillStyle = c; g.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / 4, r2 = i % 2 ? rr * .28 : rr * 1.25;
+          i ? g.lineTo(Math.cos(a) * r2, Math.sin(a) * r2) : g.moveTo(Math.cos(a) * r2, Math.sin(a) * r2);
+        }
+        g.closePath(); g.fill();
+        g.strokeStyle = '#fff'; g.globalAlpha = .75; g.lineWidth = Math.max(1, rr * .12); g.stroke();
+        coreDot(.22, .95);
+        break;
+      }
+      case 'note': {
+        /* 音符：椭圆符头 + 符干 + 旗，五线谱语汇的核心弹 */
+        g.fillStyle = c;
+        g.beginPath(); g.ellipse(-rr * .25, rr * .45, rr * .48, rr * .34, -.35, 0, G.TAU); g.fill();
+        g.fillRect(rr * .12, -rr * 1.3, Math.max(1.4, rr * .16), rr * 1.8);
+        g.beginPath(); g.moveTo(rr * .12, -rr * 1.3);
+        g.quadraticCurveTo(rr * 1.0, -rr * .9, rr * .72, -rr * .2);
+        g.quadraticCurveTo(rr * .86, -rr * .82, rr * .12, -rr * .85); g.fill();
+        g.strokeStyle = '#fff'; g.globalAlpha = .55; g.lineWidth = Math.max(1, rr * .1);
+        g.beginPath(); g.ellipse(-rr * .25, rr * .45, rr * .48, rr * .34, -.35, 0, G.TAU); g.stroke();
+        break;
+      }
+      case 'rune': {
+        /* 符印：方形封印札 + 对角十字的印纹 */
+        const Q = rr * 1.02;
+        g.fillStyle = c; g.fillRect(-Q, -Q, Q * 2, Q * 2);
+        g.strokeStyle = '#fff'; g.lineWidth = Math.max(1.2, rr * .16);
+        g.strokeRect(-Q, -Q, Q * 2, Q * 2);
+        g.beginPath(); g.moveTo(-Q * .6, -Q * .6); g.lineTo(Q * .6, Q * .6);
+        g.moveTo(Q * .6, -Q * .6); g.lineTo(-Q * .6, Q * .6); g.stroke();
+        coreDot(.20, .85);
+        break;
+      }
+      case 'scale': {
+        /* 鳞片：半月叠弧，风神录鳞弹的规整感 */
+        g.fillStyle = c;
+        g.beginPath(); g.arc(0, -rr * .35, rr * 1.05, .15, Math.PI - .15); g.fill();
+        g.strokeStyle = '#fff'; g.globalAlpha = .65; g.lineWidth = Math.max(1, rr * .13); g.stroke();
+        g.fillStyle = '#fff'; g.globalAlpha = .6;
+        g.beginPath(); g.arc(0, -rr * .35, rr * .5, .1, Math.PI - .1); g.fill();
+        break;
+      }
       case 'ring': {
         g.strokeStyle = c; g.lineWidth = Math.max(2, rr * .35);
         g.beginPath(); g.arc(0, 0, rr * .85, 0, G.TAU); g.stroke();
@@ -502,7 +550,7 @@
       const dx = a.x - T.anchorX, dy = a.y - T.anchorY;
       if (Math.abs(dx) + Math.abs(dy) > 4) T.moved = true;
       G.player.x = clamp(T.pX + dx, 12, G.PF.w - 12);
-      G.player.y = clamp(T.pY + dy, 16, G.PF.h - 14);
+      G.player.y = clamp(T.pY + dy, G.PF.topLimit, G.PF.h - 14);
       if (Math.abs(dx) + Math.abs(dy) > 1) { G.player.lastDirX = dx; G.player.lastDirY = dy; }
       if (dot) dot.style.transform = 'translate(' + clamp(dx, -60, 60) + 'px,' + clamp(dy, -60, 60) + 'px)';
     };

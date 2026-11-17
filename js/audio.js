@@ -542,6 +542,8 @@
     while (A.nextTime < t0 + A.lookahead && guard++ < 64) {
       if (A.nextTime >= t0 - .02) scheduleStep(tr, A.pos, A.nextTime, sd);
       A.nextTime += sd;
+      /* 曲子内部是完整曲式（呈示→展开→转调→高潮→终止），不是短动机循环；
+         播完一遍后照常从头接上，保证战斗 BGM 持续不断。 */
       A.pos = (A.pos + 1) % A.totalSteps;
     }
   }

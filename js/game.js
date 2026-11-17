@@ -22,7 +22,8 @@
   /* =========================================================
    * 启动 / 状态流
    * ========================================================= */
-  GM.startGame = function (charId, deck) {
+  /* 玩家初始化：正常游戏与 Boss 练习共用 */
+  GM.setupPlayer = function (charId, deck) {
     G.audio.init();
     G.killAll();
     const c = G.getChar(charId);
@@ -46,7 +47,24 @@
     GM.pendingSpell = null; GM.pendingBossDefeat = false; GM.spellDelay = 0;
     GM.dialogLine = null; GM.dialogQueue = null; GM.dialogDone = null;
     G.timeScale = 1; G.fx.flash = 0;
+  };
+
+  GM.startGame = function (charId, deck) {
+    GM.setupPlayer(charId, deck);
+    GM.practice = false;
     GM.beginStage(0);
+  };
+
+  /* Boss 练习：跳过道中与剧情，直接以指定难度进入指定 Boss */
+  GM.startBossPractice = function (bossIdx, charId, deck) {
+    GM.setupPlayer(charId, deck);
+    GM.practice = true;
+    GM.practiceBoss = bossIdx;
+    GM.stage = G.STAGES.get(bossIdx);
+    G.stageIndex = bossIdx;
+    GM.stageTick = 0; GM.waveIdx = 0;
+    GM.phase = 'transition';
+    GM.startBoss();
   };
 
   GM.beginStage = function (i) {
@@ -88,6 +106,9 @@
     const tpl = b.def.spells[n];
     if (!tpl) { GM.bossDefeated(); return; }
     b.spellNo = n; b.spell = tpl; b.spellFrame = 0;
+    /* 符卡级时停在换符时必须清掉，否则上一张在时停中结束时
+       会让下一张符卡全场卡死。 */
+    GM.freeze = false; GM.freezeBullets = false; G.fx.invert = 0; G.fx.warp = 0;
     /* 难度改变结界厚度；hpMax 供 HUD / 顶部血条按当前难度显示 */
     const dif = G.diff || G.DIFFS[1];
     b.hpMax = (tpl.hp || 0) * dif.bossHp;
@@ -142,6 +163,7 @@
     G.addScore(100000);
     G.boss = null; GM.phase = 'transition'; GM.bgTint = null;
     GM.currentTheme = GM.stage.bg;
+    if (GM.practice) { GM.finish(true); return; }
     G.audio.playBGM('stage');
     const outro = GM.stage.outro;
     GM.playDialog(outro, () => {
@@ -163,7 +185,8 @@
     G.clearBullets();
     GM.result = {
       clear, score: Math.floor(G.score), graze: G.graze, kills: G.kills,
-      stage: G.stageIndex + 1, charId: G.player ? G.player.charId : 'reimu',
+      stage: G.stageIndex + 1, practice: !!GM.practice,
+      charId: G.player ? G.player.charId : 'reimu',
       broken: G.player ? G.player.slots.filter(s => s.broken).length : 0,
       lives: G.player ? G.player.lives : 0,
       diff: G.diff ? G.diff.no : 'Normal',
@@ -333,7 +356,7 @@
       // 冲刺位移：约 0.2 秒 / 200 px，冲刺中不受伤害
       const ds = p.speed * 3.5 * dt;
       p.x = M.clamp(p.x + p.dashDx * ds, 12, G.PF.w - 12);
-      p.y = M.clamp(p.y + p.dashDy * ds, 16, G.PF.h - 14);
+      p.y = M.clamp(p.y + p.dashDy * ds, G.PF.topLimit, G.PF.h - 14);
       p.invuln = Math.max(p.invuln, .1);
       p.dashTrail++;
       if (p.dashTrail % 2 === 0)
@@ -346,7 +369,7 @@
     } else {
       const spd = p.focus ? p.focusSpeed : p.speed;
       p.x = M.clamp(p.x + a.x * spd * dt, 12, G.PF.w - 12);
-      p.y = M.clamp(p.y + a.y * spd * dt, 16, G.PF.h - 14);
+      p.y = M.clamp(p.y + a.y * spd * dt, G.PF.topLimit, G.PF.h - 14);
       if (a.len > .01) { p.lastDirX = a.x; p.lastDirY = a.y; }
     }
     if (p.invuln > 0) p.invuln -= dt;
@@ -403,7 +426,7 @@
   GM.clearDecor = () => {
     const arr = G.shots; let n = 0;
     for (let i = 0; i < arr.length; i++) {
-      if (arr[i].tag === 'decor' || arr[i].tag === 'bombOrb') { G.poolS.push(arr[i]); continue; }
+      if (arr[i].tag === 'decor' || arr[i].tag === 'bombOrb' || arr[i].tag === 'yinOrb') { G.poolS.push(arr[i]); continue; }
       arr[n++] = arr[i];
     }
     arr.length = n;
@@ -517,15 +540,17 @@
   E.homingJade = c => {
     const p = c.p, sh = c.sh;
     if (p.focus) {
+      /* 低速散射：七枚扇形赛钱，伤害 2 倍 */
       for (let i = 0; i < 7; i++) {
         const t = i / 6 - .5;
         c.mk(p.x, p.y - 12, c.up + t * .9, sh.speed,
-          { sprite: 'star', color: 'amber', r: 6, dmg: sh.dmg, life: 1.2 });
+          { sprite: 'star', color: 'amber', r: 6, dmg: sh.dmg * 2, life: 1.2 });
       }
     } else {
+      /* 高速成长赛钱（大钱符）：伤害 3 倍 */
       c.mk(p.x, p.y - 20, c.up, sh.speed,
         { motion: 'grow', growMax: 34, r: 8, sprite: 'star', color: 'gold',
-          dmg: sh.dmg, pierce: 9, life: 1.3 });
+          dmg: sh.dmg * 3, pierce: 9, life: 1.3 });
     }
   };
 
@@ -691,36 +716,88 @@
         break;
       }
       case 'purifyRing': {
-        /* 黑白宝玉：位置对称、超高速旋转；黑球泛白光、白球泛黑光 */
+        /* 极符「阴阳宝玉」：阴阳玉本身不发射子弹，而是作为环绕物
+           直接撞击敌人。两颗黑白玉位置对称、超高速绕自机旋转。
+           高速按住攻击：旋转半径自动调到刚好能碰到最近敌人。
+           低速按住攻击：玉暂时停止公转，改为反复穿透冲撞敌人。 */
         const t = F / 60;
         const fire = G.fireDown();
         const tgt = GM.nearestTarget(p.x, p.y);
-        let R = 58;
-        if (fire && !p.focus && tgt) R = M.clamp(M.dist2(p.x, p.y, tgt.x, tgt.y) ** .5 * .45, 32, 130);
-        const pos = [[Math.cos(t * 11) * R, Math.sin(t * 11) * R],
-                     [-Math.cos(t * 11) * R, -Math.sin(t * 11) * R]];
-        GM.syncDecor(pos, 'orb', {
-          sprite: 'big', color: 'white', r: 12, zoneR: 30, spin: 9
-        });
+        const summon = fire && p.focus;              // 低速：召唤物自由追击
+        const reach  = fire && !p.focus;             // 高速：按敌人距离调半径
+
+        /* 高速：旋转半径直接跟随最近敌人的距离，不设上限——
+           敌人多远就扩到多远，保证一定能攻击到最近的敌人。
+           没按攻击时回到贴身的基础半径。 */
+        let wantR = 44;
+        if (reach && tgt)
+          wantR = Math.max(30, Math.hypot(tgt.x - p.x, tgt.y - p.y));
+        GM._orbR = GM._orbR === undefined ? 44 : GM._orbR;
+        GM._orbR += (wantR - GM._orbR) * .2;
+        const R = GM._orbR;
+
+        const a0 = t * 11;
+        const base = [[Math.cos(a0) * R, Math.sin(a0) * R],
+                      [-Math.cos(a0) * R, -Math.sin(a0) * R]];
         let i = 0;
         for (const s of G.shots) {
-          if (s.tag !== 'decor') continue;
-          const q = pos[i % 2];
-          s.x = p.x + q[0]; s.y = p.y + q[1];
-          /* 低速且按住开火：锁定敌人来回冲撞 */
-          if (fire && p.focus && tgt) {
-            const a = Math.atan2(tgt.y - s.y, tgt.x - s.x);
-            const kick = Math.sin(F * .35 + i * Math.PI) * 3.4;
-            s.x += Math.cos(a) * kick; s.y += Math.sin(a) * kick;
-          }
+          if (s.tag !== 'yinOrb') continue;
           s.px = s.x; s.py = s.y;
-          G.spawnParticle({ x: s.x, y: s.y, vx: M.rand(-20, 20), vy: M.rand(-20, 20),
-            color: i % 2 ? 'ink' : 'white', life: .22, size: 4, type: 'spark' });
-          if (F % 4 === 0)
-            GM.raw({ x: s.x, y: s.y, angle: -Math.PI / 2, speed: 1700,
-              sprite: 'orb', color: i % 2 ? 'gold' : 'white', dmg, r: 6,
-              pierce: 2, life: 1.0, tag: 'orbShot' });
+          /* 高速模式（含常态绕圈）伤害翻倍；低速穿刺维持基础值。 */
+          s.dmg = summon ? dmg * 2.2 : dmg * 4.4;
+          if (summon) {
+            /* 低速：像十六夜的飞天玉——玉从敌人身旁 80px 处出现，
+               沿穿过敌人的方向高速直线穿越，到另一侧 80px 后折返，
+               再高速穿回来，如此往复。撞击由 pierce:99 + hitCd 反复结算。
+               每次锁定新敌人时重置相位与方向。 */
+            /* 两颗玉分工：i%2===0 打最近的敌人，i%2===1 打次近的（远的那枚），
+               形成「一个打近、一个打远」。敌人不足时都落到同一目标。 */
+            const aim = GM.nthTarget(p.x, p.y, i % 2) || tgt;
+            if (aim) {
+              /* 只在「切换到另一个敌人」时才重置相位——不能用坐标比较，
+                 因为敌人一直在移动，坐标每帧都变会让相位反复归零、
+                 玉就卡在敌人身旁不动了。 */
+              if (s._aimRef !== aim || s._dash === undefined) {
+                s._aimRef = aim;
+                const ang0 = Math.atan2(p.y - aim.y, p.x - aim.x);
+                s._dashDir = [Math.cos(ang0), Math.sin(ang0)];
+                s._dash = -80; s._dashSign = 1;
+              }
+              const OFF = 80, SPD = 720;
+              s._dash += s._dashSign * SPD / 60;
+              if (s._dash >= OFF) { s._dash = OFF; s._dashSign = -1; }
+              if (s._dash <= -OFF) { s._dash = -OFF; s._dashSign = 1; }
+              const d = s._dashDir;
+              s.x = aim.x + d[0] * s._dash;
+              s.y = aim.y + d[1] * s._dash;
+              s.vx = d[0] * SPD * s._dashSign;
+              s.vy = d[1] * SPD * s._dashSign;
+              s.angle = Math.atan2(s.vy, s.vx);
+              if (F % 4 === 0)
+                G.spawnParticle({ x: s.x, y: s.y, vx: M.rand(-20, 20), vy: M.rand(-20, 20),
+                  color: i % 2 ? 'ink' : 'white', life: .2, size: 4, type: 'spark' });
+            }
+          } else {
+            /* 常态 / 高速：两颗玉对称绕自机高速旋转，本体撞击敌人 */
+            s._dash = undefined;   // 离开召唤模式时清掉穿越相位
+            const q = base[i % 2];
+            s.x = p.x + q[0]; s.y = p.y + q[1];
+            s.vx = s.vy = 0;
+          }
           i++;
+        }
+        /* 首次进入该武器时创建两颗可撞击的阴阳玉 */
+        if (i === 0) {
+          GM.raw({ x: p.x + base[0][0], y: p.y + base[0][1],
+            vx: 0, vy: 0, speed: 0, delay: 0,
+            sprite: 'big', color: 'white', r: 14, zoneR: 30, spin: 9,
+            dmg: dmg * 2.2, pierce: 99, hitCd: .09, life: 999,
+            motion: 'stay', tag: 'yinOrb' });
+          GM.raw({ x: p.x + base[1][0], y: p.y + base[1][1],
+            vx: 0, vy: 0, speed: 0, delay: 0,
+            sprite: 'big', color: 'ink', r: 14, zoneR: 30, spin: -9,
+            dmg: dmg * 2.2, pierce: 99, hitCd: .09, life: 999,
+            motion: 'stay', tag: 'yinOrb' });
         }
         break;
       }
@@ -795,6 +872,7 @@
    * 大招阶段机：0～2 秒无敌蓄力 → 全屏伤害＋清弹 → 各自专属效果
    * ========================================================= */
   GM.freeze = false;
+  GM.freezeBullets = false;   // 符卡级「只冻结敌弹」，不影响 Boss 时间
   GM.fireRateMul = 1;
   GM.silence = 0;
   GM.tickBomb = function (dt) {
@@ -970,7 +1048,7 @@
             }
         } else if (!f.fired2) {
           f.fired2 = true;
-          GM.freeze = false; G.fx.invert = 0; G.fx.warp = 0;
+          GM.freeze = false; GM.freezeBullets = false; G.fx.invert = 0; G.fx.warp = 0;
           for (const s of G.shots)
             if (s.tag === 'bombKnife') { s.delay = 0; s.hitCd = 0; }
           G.flash(.7, '#ffffff'); G.shake(16);
@@ -1022,7 +1100,7 @@
           }
         } else if (!f.fired2) {
           f.fired2 = true;
-          GM.freeze = false; G.fx.invert = 0; G.fx.warp = 0;
+          GM.freeze = false; GM.freezeBullets = false; G.fx.invert = 0; G.fx.warp = 0;
           if (f.home && p) { p.x = f.home.x; p.y = f.home.y; }
           for (const s of G.shots)
             if (s.tag === 'bombKnife') { s.delay = 0; s.hitCd = 0; }
@@ -1040,7 +1118,7 @@
       }
     }
     if (f.t >= f.dur) {
-      GM.freeze = false; G.fx.invert = 0; G.fx.warp = 0;
+      GM.freeze = false; GM.freezeBullets = false; G.fx.invert = 0; G.fx.warp = 0;
       GM.fireRateMul = 1;
       GM.bombFx = null;
     }
@@ -1162,9 +1240,11 @@
     GM.tickSpell(dt);
     GM.updateShots(dt);
     GM.updateWaves(dt);
-    /* 时停大招：敌人、敌弹、Boss 全部静止，自机与自身弹幕仍可动 */
+    /* 时停大招：敌人、敌弹、Boss 全部静止，自机与自身弹幕仍可动。
+       freezeBullets 是符卡级的「只冻结敌弹」开关：Boss 与其时间（spellFrame）
+       照常推进，否则符卡脚本里靠帧号解除的时停会永远卡死。 */
     if (!GM.freeze) {
-      GM.updateBullets(dt);
+      if (!GM.freezeBullets) GM.updateBullets(dt);
       GM.updateLasers(dt);
       GM.updateEnemies(dt);
       GM.updateBoss(dt);
@@ -1331,7 +1411,7 @@
       }
       /* 装饰物（法阵 / 阴阳玉 / 浮游炮 / 传送阵）跟随自机或固定摆位，
          不能被常规越界逻辑回收，否则贴边时会整件消失。 */
-      const fixed = s.tag === 'decor' || s.tag === 'bombOrb' || s.tag === 'clockFace';
+      const fixed = s.tag === 'decor' || s.tag === 'bombOrb' || s.tag === 'clockFace' || s.tag === 'yinOrb';
       if (!fixed && mo !== 'expand' && mo !== 'wave' &&
           (s.x < -30 || s.x > W + 30 || s.y < -40 || s.y > G.PF.h + 40)) {
         G.poolS.push(s); continue;
@@ -1385,17 +1465,16 @@
     for (const o of spawned) G.spawnShot(o);
   };
 
-  GM.nearestTarget = function (x, y) {
-    let best = null, d2 = 1e9;
-    for (const e of G.enemies) {
-      const d = M.dist2(x, y, e.x, e.y);
-      if (d < d2 && e.hp > 0) { d2 = d; best = e; }
-    }
-    if (G.boss && G.boss.spell) {
-      const d = M.dist2(x, y, G.boss.x, G.boss.y);
-      if (d < d2) best = G.boss;
-    }
-    return best;
+  GM.nearestTarget = function (x, y) { return GM.nthTarget(x, y, 0); };
+  /* 第 n 近目标（0=最近）。阴阳玉低速时两颗分工：一颗打最近、一颗打次近。 */
+  GM.nthTarget = function (x, y, n) {
+    const cand = [];
+    for (const e of G.enemies)
+      if (e.hp > 0) cand.push({ o: e, d: M.dist2(x, y, e.x, e.y) });
+    if (G.boss && G.boss.spell)
+      cand.push({ o: G.boss, d: M.dist2(x, y, G.boss.x, G.boss.y) });
+    cand.sort((a, b) => a.d - b.d);
+    return cand[Math.min(n, cand.length - 1)] ? cand[Math.min(n, cand.length - 1)].o : null;
   };
 
   /* ---------- 敌弹 ---------- */
@@ -1410,8 +1489,16 @@
       if (b.delay > 0) {
         b.delay -= dt;
         if (b.delay > 0) { arr[n++] = b; continue; }
-        // 延迟结束：按原角度重新起速（并明确归零，避免残留负值影响判定）
+        // 延迟结束：起速。若带 aimBias，则在「发射的这一刻」按自机当前位置
+        // 实时计算朝向（预警期玩家移动过也能追向新位置），而不沿用生成时的旧角度。
         b.delay = 0;
+        if (b.aimBias > 0 && p) {
+          const toP = Math.atan2(p.y - b.y, p.x - b.x);
+          let gap = M.norm(toP - b.aimBaseAngle);
+          if (gap > Math.PI) gap -= TAU;
+          b.angle = b.aimBaseAngle + gap * b.aimBias
+            + M.rand(-b.aimJitter, b.aimJitter);
+        }
         b.vx = Math.cos(b.angle) * b.speed;
         b.vy = Math.sin(b.angle) * b.speed;
       }

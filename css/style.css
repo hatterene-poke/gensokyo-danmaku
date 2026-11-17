@@ -253,3 +253,36 @@ body.touch #touch-ui.show { display: block; }
   font-size: 30px; line-height: 1; pointer-events: auto; -webkit-user-select: none; user-select: none;
   display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 #touch-exit.press { background: rgba(255,255,255,.22); }
+
+/* ---- Boss 练习：列表 + 立绘预览 ---- */
+.practice-layout { display: flex; gap: 18px; align-items: stretch; margin: 12px 0; }
+.practice-list { flex: 1 1 auto; min-width: 0; }
+.practice-list .lib-item { cursor: pointer; }
+.practice-preview { flex: 0 0 300px; text-align: center; }
+.practice-preview canvas {
+  display: block; width: 300px; height: 360px;
+  border: 1px solid rgba(200,170,230,.35); border-radius: 8px;
+  background: radial-gradient(ellipse at 50% 35%, #221636 0%, #0b0716 75%);
+}
+#practice-info { margin-top: 8px; font-size: 12px; line-height: 1.7; color: #cbb9d8; }
+#practice-info b { color: #ffe6c4; }
+
+/* ---- 练习页：中间内容可滚动，页脚按钮恒定可见 ----
+   .panel 是 flex 列且限高 760px；中间块若不设 min-height:0 + overflow，
+   内容（长介绍 / 六张 Boss 卡）会把 .panel-foot 顶到可视区之外。 */
+#scr-practice .practice-layout,
+#scr-practice .config-hint,
+#scr-practice #practice-diff { flex: 0 0 auto; }
+#scr-practice .practice-scroll {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding-right: 6px; margin: 4px 0;
+  scrollbar-width: thin; scrollbar-color: rgba(232,197,122,.5) transparent;
+}
+#scr-practice .practice-scroll::-webkit-scrollbar { width: 6px; }
+#scr-practice .practice-scroll::-webkit-scrollbar-thumb { background: rgba(232,197,122,.45); border-radius: 3px; }
+#scr-practice .practice-preview { flex: 0 0 300px; }
+#scr-practice .practice-preview canvas { width: 260px; height: 312px; }
+#practice-info { max-height: 96px; overflow-y: auto; }
+#scr-practice .panel-foot { flex-wrap: wrap; }
+/* 矮屏适配：面板不超过视口高度，滚动由 .practice-scroll 承担 */
+#scr-practice .panel { max-height: min(760px, calc(100vh - 48px)); }

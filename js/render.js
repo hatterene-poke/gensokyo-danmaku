@@ -152,6 +152,9 @@
       ink: ['#0e0a1a', '#241338', '#361a3e'],
       mirror: ['#04121c', '#082c3c', '#0d4454'],
       fire: ['#160710', '#33101f', '#4c1726'],
+      star: ['#040c20', '#0a1c3e', '#16345e'],
+      music: ['#0e0622', '#1c0e3e', '#331a5e'],
+      void: ['#040309', '#0a0814', '#141022'],
       title: ['#140a22', '#2a1535', '#4a2044']
     }[theme] || ['#100a20', '#281637', '#3a1c40'];
     g.addColorStop(0, pal[0]); g.addColorStop(.6, pal[1]); g.addColorStop(1, pal[2]);
@@ -192,6 +195,65 @@
       for (let i = 0; i < 9; i++) {
         const x = 40 + i * 76, y = 120 + Math.sin(t + i) * 8;
         ctx.fillStyle = '#ffb35c'; ctx.beginPath(); ctx.ellipse(x, y, 10, 18, 0, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+    if (theme === 'star') {
+      /* 第四面：缓慢旋转的天球仪与星座连线 */
+      ctx.save(); ctx.translate(W / 2, H * .38);
+      ctx.globalAlpha = .13; ctx.strokeStyle = '#9fd8ff'; ctx.lineWidth = 1.2;
+      for (let k = 0; k < 3; k++) {
+        ctx.save(); ctx.rotate(t * (k % 2 ? -.06 : .05));
+        ctx.beginPath(); ctx.ellipse(0, 0, 190 - k * 42, 108 - k * 22, 0, 0, TAU); ctx.stroke();
+        ctx.restore();
+      }
+      /* 星座：八个等分点用直线相连，构成一个转动的八边形 */
+      ctx.globalAlpha = .18;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = t * .04 + i / 8 * TAU;
+        const x = Math.cos(a) * 160, y = Math.sin(a) * 92;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = '#ffe9a8';
+      for (let i = 0; i < 8; i++) {
+        const a = t * .04 + i / 8 * TAU;
+        ctx.fillRect(Math.cos(a) * 160 - 2, Math.sin(a) * 92 - 2, 4, 4);
+      }
+      ctx.restore();
+    }
+    if (theme === 'music') {
+      /* 第五面：五线谱自下缓缓流动 + 跳动的音符点 */
+      ctx.save(); ctx.globalAlpha = .14; ctx.strokeStyle = '#c6a0ff'; ctx.lineWidth = 1;
+      const scroll = (t * 18) % 30;
+      for (let i = -1; i < 8; i++) {
+        const y = i * 30 + scroll;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      ctx.fillStyle = '#e6d0ff'; ctx.globalAlpha = .28;
+      for (let i = 0; i < 24; i++) {
+        const x = (i * 137 + 40) % W;
+        const y = ((t * 26 + i * 97) % (H + 60)) - 30;
+        ctx.beginPath(); ctx.ellipse(x, y, 4, 3, -.3, 0, TAU); ctx.fill();
+        ctx.fillRect(x + 3, y - 12, 1.5, 12);
+      }
+      ctx.restore();
+    }
+    if (theme === 'void') {
+      /* 第六面：几乎全黑，只有缓缓反向旋转的封印几何 */
+      ctx.save(); ctx.translate(W / 2, H * .44);
+      ctx.globalAlpha = .11; ctx.strokeStyle = '#b7b0d8'; ctx.lineWidth = 1.4;
+      for (let k = 0; k < 4; k++) {
+        ctx.save(); ctx.rotate(t * (k % 2 ? -.035 : .028) + k * Math.PI / 8);
+        const R = 210 - k * 38;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = i / 8 * TAU;
+          const x = Math.cos(a) * R, y = Math.sin(a) * R;
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+        ctx.closePath(); ctx.stroke(); ctx.restore();
       }
       ctx.restore();
     }
@@ -671,6 +733,60 @@
         ctx.fillStyle = '#bff3ff';
         ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(5, 0); ctx.lineTo(0, 8); ctx.lineTo(-5, 0); ctx.closePath(); ctx.fill();
         ctx.restore();
+      }
+      ctx.restore();
+    } else if (d.id === 'seira') {
+      // 星Reader：天球仪冠与绕身行星
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = '#8fd0ff'; ctx.lineWidth = 1.6; ctx.globalAlpha = .8;
+      ctx.beginPath(); ctx.arc(0, -38, 20, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, -38, 26, 9, -.3, 0, TAU); ctx.stroke();
+      for (let i = 0; i < 3; i++) {
+        const a = t * .9 + i * TAU / 3;
+        ctx.fillStyle = i === 1 ? '#ffe9a8' : '#9fd8ff';
+        ctx.beginPath(); ctx.arc(Math.cos(a) * 58, Math.sin(a) * 44 - 4, 4, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+      // 星芒发饰
+      ctx.fillStyle = '#ffe9a8';
+      for (const s of [-1, 1]) {
+        ctx.save(); ctx.translate(s * 16, -42); ctx.rotate(t * .4);
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = i * Math.PI / 4, rr = i % 2 ? 2 : 6;
+          i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+    } else if (d.id === 'rakuraku') {
+      // 无音乐师：悬浮五线谱与音符
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .75;
+      ctx.strokeStyle = '#c6a0ff'; ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-30, -14 + i * 6 + Math.sin(t + i) * 2);
+        ctx.quadraticCurveTo(0, -20 + i * 6, 30, -14 + i * 6 + Math.sin(t + i) * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#e6d0ff';
+      for (let i = 0; i < 4; i++) {
+        const y = ((t * 22 + i * 24) % 96) - 48;
+        ctx.beginPath(); ctx.ellipse(38 + Math.sin(t * 2 + i) * 6, y, 4, 3, -.3, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    } else if (d.id === 'nameless') {
+      // 无名守人：层层反向旋转的封印几何，无脸无饰
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = '#b7b0d8';
+      for (let k = 0; k < 3; k++) {
+        ctx.save(); ctx.rotate(t * (k % 2 ? -.18 : .13) + k * Math.PI / 6);
+        ctx.globalAlpha = .35 - k * .07; ctx.lineWidth = 1.2;
+        const R = 44 + k * 15;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = i / 8 * TAU;
+          i ? ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R) : ctx.moveTo(Math.cos(a) * R, Math.sin(a) * R);
+        }
+        ctx.closePath(); ctx.stroke(); ctx.restore();
       }
       ctx.restore();
     } else {
