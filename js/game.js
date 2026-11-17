@@ -57,6 +57,14 @@
 
   /* Boss 练习：跳过道中与剧情，直接以指定难度进入指定 Boss */
   GM.startBossPractice = function (bossIdx, charId, deck) {
+    /* 从练习界面反复切换 Boss 时，上一次的弹幕/激光/装饰必须清掉，
+       否则会残留到新 Boss 的场景里（截图里星罗场景出现他面的札弹即此因）。 */
+    G.clearBullets(); G.lasers.length = 0;
+    G.enemies.length = 0; G.shots.length = 0;
+    G.particles.length = 0; G.floaters.length = 0;
+    GM.clearDecor();
+    GM.freeze = false; GM.freezeBullets = false;
+    G.fx.invert = 0; G.fx.warp = 0;
     GM.setupPlayer(charId, deck);
     GM.practice = true;
     GM.practiceBoss = bossIdx;
@@ -162,6 +170,13 @@
       setTimeout(() => G.burst(b.x + M.rand(-80, 80), b.y + M.rand(-60, 60), 'cream', 20, 240), i * 120);
     G.addScore(100000);
     G.boss = null; GM.phase = 'transition'; GM.bgTint = null;
+    /* 击破瞬间必须清场：否则残留敌弹/激光/装饰玉会在过场对话期间继续演化，
+       下一面开局前若对话停留就会在画面上堆积成一团（第四面曾复现）。 */
+    G.clearBullets(); G.lasers.length = 0;
+    G.enemies.length = 0;
+    GM.clearDecor(); G.shots.length = 0;
+    GM.freeze = false; GM.freezeBullets = false;
+    G.fx.invert = 0; G.fx.warp = 0;
     GM.currentTheme = GM.stage.bg;
     if (GM.practice) { GM.finish(true); return; }
     G.audio.playBGM('stage');
